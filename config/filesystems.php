@@ -74,6 +74,13 @@ return [
             'throw' => true,
         ],
 
+        'imports' => [
+            'driver' => 'local',
+            'root' => storage_path('app/imports'),
+            'visibility' => 'private',
+            'throw' => true,
+        ],
+
     ],
 
     /*

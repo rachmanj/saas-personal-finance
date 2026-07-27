@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\AccountController;
 use App\Http\Controllers\Api\CategoryController;
 use App\Http\Controllers\Api\DashboardController;
+use App\Http\Controllers\Api\ImportController;
 use App\Http\Controllers\Api\OcrTransactionController;
 use App\Http\Controllers\Api\TagController;
 use App\Http\Controllers\Api\VoiceTransactionController;
@@ -57,5 +58,14 @@ Route::middleware(['auth:sanctum'])->group(function () {
 
     Route::prefix('dashboard')->group(function () {
         Route::get('/summary', [DashboardController::class, 'summary']);
+    });
+
+    Route::prefix('imports')->group(function () {
+        Route::get('/', [ImportController::class, 'index']);
+        Route::post('/upload', [ImportController::class, 'upload']);
+        Route::get('/{import}/preview', [ImportController::class, 'preview']);
+        Route::post('/{import}/process', [ImportController::class, 'process']);
+        Route::post('/{import}/confirm', [ImportController::class, 'confirm']);
+        Route::delete('/{import}', [ImportController::class, 'destroy']);
     });
 });
