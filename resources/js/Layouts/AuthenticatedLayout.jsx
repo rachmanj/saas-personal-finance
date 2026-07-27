@@ -48,7 +48,11 @@ export default function AuthenticatedLayout({ children, title }) {
                 <Header style={{ padding: '0 24px', display: 'flex', alignItems: 'center' }}>
                     <h2 style={{ margin: 0, color: 'inherit' }}>{title}</h2>
                 </Header>
-                <Content style={{ margin: 24, padding: 24, background: 'var(--ant-color-bg-container)', borderRadius: 8 }}>
+                <Content
+                    id="main-content"
+                    role="main"
+                    style={{ margin: 24, padding: 24, background: 'var(--ant-color-bg-container)', borderRadius: 8 }}
+                >
                     {children}
                 </Content>
             </Layout>

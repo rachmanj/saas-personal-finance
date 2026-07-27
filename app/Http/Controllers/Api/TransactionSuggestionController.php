@@ -3,13 +3,15 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\Category;
 use App\Models\Transaction;
+use App\Services\CategorizationRuleService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class TransactionSuggestionController extends Controller
 {
-    public function __invoke(Request $request): JsonResponse
+    public function __invoke(Request $request, CategorizationRuleService $ruleService): JsonResponse
     {
         $request->validate([
             'query' => ['required', 'string', 'min:2', 'max:255'],
@@ -17,7 +19,6 @@ class TransactionSuggestionController extends Controller
 
         $query = $request->input('query');
 
-        // Merchant autocomplete — distinct descriptions from last 90 days
         $merchants = Transaction::query()
             ->whereNotNull('description')
             ->where('description', 'like', "%{$query}%")
@@ -28,20 +29,13 @@ class TransactionSuggestionController extends Controller
             ->pluck('description')
             ->values();
 
-        // Category prediction — simple keyword match (stub for AI in Phase 10)
-        $predictedCategoryId = null;
+        $suggestion = $ruleService->suggest($query);
+
+        $predictedCategoryId = $suggestion['category_id'];
         $predictedCategoryName = null;
 
-        // Stub: check if any existing transaction with similar description has a category
-        $existing = Transaction::query()
-            ->whereNotNull('category_id')
-            ->where('description', 'like', "%{$query}%")
-            ->with('category')
-            ->first();
-
-        if ($existing && $existing->category) {
-            $predictedCategoryId = $existing->category_id;
-            $predictedCategoryName = $existing->category->name;
+        if ($predictedCategoryId !== null) {
+            $predictedCategoryName = Category::query()->find($predictedCategoryId)?->name;
         }
 
         return response()->json([
@@ -49,6 +43,8 @@ class TransactionSuggestionController extends Controller
                 'merchants' => $merchants,
                 'predicted_category_id' => $predictedCategoryId,
                 'predicted_category_name' => $predictedCategoryName,
+                'confidence' => $suggestion['confidence'],
+                'source' => $suggestion['source'],
             ],
             'message' => 'Suggestions retrieved',
             'errors' => null,

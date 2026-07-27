@@ -1,6 +1,8 @@
-import { useState, useEffect } from 'react';
-import { Modal, Form, Input, InputNumber, Select, DatePicker, Switch, App, Tabs } from 'antd';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { Modal, Form, Input, InputNumber, Select, DatePicker, Switch, App, Tabs, Space } from 'antd';
 import { apiGet, apiPost, apiPut } from '../../utils/api';
+import { fetchCategorySuggestion } from '../../utils/categorySuggestion';
+import ConfidenceBadge from '../Shared/ConfidenceBadge';
 import SplitTransaction from './SplitTransaction';
 import MerchantAutocomplete from './MerchantAutocomplete';
 import dayjs from 'dayjs';
@@ -37,11 +39,16 @@ export default function TransactionForm({ open, onClose, onSuccess, transaction 
     const [tags, setTags] = useState([]);
     const [transactionType, setTransactionType] = useState('expense');
     const [transactionAmount, setTransactionAmount] = useState(0);
+    const [categoryConfidence, setCategoryConfidence] = useState(null);
+    const [metadataLoading, setMetadataLoading] = useState(false);
+    const suggestionRequestId = useRef(0);
 
     const isEdit = !!transaction;
+    const description = Form.useWatch('description', form);
 
     useEffect(() => {
         if (open) {
+            setMetadataLoading(true);
             Promise.all([
                 apiGet('/api/accounts'),
                 apiGet('/api/categories'),
@@ -50,7 +57,7 @@ export default function TransactionForm({ open, onClose, onSuccess, transaction 
                 setAccounts(accRes.data || []);
                 setCategories(catRes.data || []);
                 setTags(tagRes.data || []);
-            }).catch(() => {});
+            }).catch(() => {}).finally(() => setMetadataLoading(false));
 
             if (transaction) {
                 form.setFieldsValue({
@@ -61,13 +68,53 @@ export default function TransactionForm({ open, onClose, onSuccess, transaction 
                 });
                 setTransactionType(transaction.type || 'expense');
                 setTransactionAmount(Number(transaction.amount) || 0);
+                setCategoryConfidence(null);
             } else {
                 form.resetFields();
                 setTransactionType('expense');
                 setTransactionAmount(0);
+                setCategoryConfidence(null);
             }
         }
     }, [open, transaction, form]);
+
+    const updateCategorySuggestion = useCallback(async (description) => {
+        if (!description || description.length < 2) {
+            setCategoryConfidence(null);
+            return;
+        }
+
+        suggestionRequestId.current += 1;
+        const requestId = suggestionRequestId.current;
+
+        try {
+            const suggestion = await fetchCategorySuggestion(description);
+            if (requestId !== suggestionRequestId.current) {
+                return;
+            }
+
+            if (suggestion.categoryId && !form.getFieldValue('category_id')) {
+                form.setFieldsValue({ category_id: suggestion.categoryId });
+            }
+            setCategoryConfidence(suggestion.confidence);
+        } catch {
+            if (requestId === suggestionRequestId.current) {
+                setCategoryConfidence(null);
+            }
+        }
+    }, [form]);
+
+    useEffect(() => {
+        if (!open || !description) {
+            return;
+        }
+
+        const timer = setTimeout(() => {
+            updateCategorySuggestion(description);
+        }, 400);
+
+        return () => clearTimeout(timer);
+    }, [description, open, updateCategorySuggestion]);
 
     const handleSubmit = async (values) => {
         setLoading(true);
@@ -119,6 +166,7 @@ export default function TransactionForm({ open, onClose, onSuccess, transaction 
             confirmLoading={loading}
             destroyOnClose
             width={640}
+            loading={metadataLoading}
         >
             <Form
                 form={form}
@@ -182,7 +230,15 @@ export default function TransactionForm({ open, onClose, onSuccess, transaction 
                     </Form.Item>
                 )}
 
-                <Form.Item name="category_id" label="Category">
+                <Form.Item
+                    name="category_id"
+                    label={
+                        <Space>
+                            Category
+                            <ConfidenceBadge confidence={categoryConfidence} />
+                        </Space>
+                    }
+                >
                     <Select
                         allowClear
                         showSearch

@@ -4,6 +4,7 @@ import { ConfigProvider, theme } from 'antd';
 import { ThemeProvider, useTheme } from './Contexts/ThemeContext';
 import { registerSW } from './utils/swRegistration';
 import InstallPrompt from './Components/PWA/InstallPrompt';
+import ErrorBoundary from './Components/Shared/ErrorBoundary';
 
 registerSW();
 
@@ -34,8 +35,10 @@ function ThemedApp({ App, props }) {
                         : theme.defaultAlgorithm,
             }}
         >
-            <App {...props} />
-            <InstallPrompt />
+            <ErrorBoundary>
+                <App {...props} />
+                <InstallPrompt />
+            </ErrorBoundary>
         </ConfigProvider>
     );
 }

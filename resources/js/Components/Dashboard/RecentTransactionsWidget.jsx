@@ -1,5 +1,6 @@
 import { List, Tag, Typography } from 'antd';
 import dayjs from 'dayjs';
+import EmptyState from '../Shared/EmptyState';
 
 const { Text } = Typography;
 
@@ -11,11 +12,7 @@ const typeColors = {
 
 export default function RecentTransactionsWidget({ transactions = [] }) {
     if (transactions.length === 0) {
-        return (
-            <div style={{ textAlign: 'center', padding: '24px 0', color: '#888' }}>
-                No recent transactions
-            </div>
-        );
+        return <EmptyState description="No recent transactions" />;
     }
 
     return (

@@ -1,8 +1,9 @@
 import { Head, usePage } from '@inertiajs/react';
-import { Alert, App } from 'antd';
+import { Alert, App, Tabs } from 'antd';
 import { useEffect } from 'react';
 import AuthenticatedLayout from '../../Layouts/AuthenticatedLayout';
 import BillingSettings from '../../Components/Settings/BillingSettings';
+import AISettings from './AISettings';
 
 /**
  * @param {{
@@ -44,7 +45,21 @@ function BillingContent({ subscription, plans }) {
                 <Alert type="success" message={flash.success} showIcon style={{ marginBottom: 16 }} />
             )}
 
-            <BillingSettings subscription={subscription} plans={plans} />
+            <Tabs
+                defaultActiveKey="billing"
+                items={[
+                    {
+                        key: 'billing',
+                        label: 'Billing',
+                        children: <BillingSettings subscription={subscription} plans={plans} />,
+                    },
+                    {
+                        key: 'ai',
+                        label: 'AI Settings',
+                        children: <AISettings />,
+                    },
+                ]}
+            />
         </AuthenticatedLayout>
     );
 }
