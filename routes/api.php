@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\AccountController;
+use App\Http\Controllers\Api\BudgetController;
 use App\Http\Controllers\Api\CategoryController;
 use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\ImportController;
@@ -56,6 +57,15 @@ Route::middleware(['auth:sanctum'])->group(function () {
         Route::delete('/{transaction}/splits/{split}', [TransactionSplitController::class, 'destroy']);
     });
 
+    Route::prefix('budgets')->group(function () {
+        Route::get('/alerts', [BudgetController::class, 'alerts']);
+        Route::get('/', [BudgetController::class, 'index']);
+        Route::post('/', [BudgetController::class, 'store']);
+        Route::get('/{budget}', [BudgetController::class, 'show']);
+        Route::put('/{budget}', [BudgetController::class, 'update']);
+        Route::delete('/{budget}', [BudgetController::class, 'destroy']);
+    });
+
     Route::prefix('dashboard')->group(function () {
         Route::get('/summary', [DashboardController::class, 'summary']);
     });
@@ -63,6 +73,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::prefix('imports')->group(function () {
         Route::get('/', [ImportController::class, 'index']);
         Route::post('/upload', [ImportController::class, 'upload']);
+        Route::get('/{import}', [ImportController::class, 'show']);
         Route::get('/{import}/preview', [ImportController::class, 'preview']);
         Route::post('/{import}/process', [ImportController::class, 'process']);
         Route::post('/{import}/confirm', [ImportController::class, 'confirm']);
