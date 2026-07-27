@@ -40,4 +40,12 @@ Route::middleware('auth')->group(function () {
     Route::get('/tags', function () {
         return inertia('Tags/Index');
     })->name('tags.index');
+
+    Route::get('/transactions', function () {
+        return inertia('Transactions/Index');
+    })->name('transactions.index');
+
+    Route::get('/transactions/{id}', function (string $id) {
+        return inertia('Transactions/Show', ['id' => $id]);
+    })->name('transactions.show');
 });

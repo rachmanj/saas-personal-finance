@@ -3,6 +3,10 @@
 use App\Http\Controllers\Api\AccountController;
 use App\Http\Controllers\Api\CategoryController;
 use App\Http\Controllers\Api\TagController;
+use App\Http\Controllers\Api\TransactionBulkController;
+use App\Http\Controllers\Api\TransactionController;
+use App\Http\Controllers\Api\TransactionSplitController;
+use App\Http\Controllers\Api\TransactionSuggestionController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware(['auth:sanctum'])->group(function () {
@@ -30,5 +34,17 @@ Route::middleware(['auth:sanctum'])->group(function () {
         Route::get('/{tag}', [TagController::class, 'show']);
         Route::put('/{tag}', [TagController::class, 'update']);
         Route::delete('/{tag}', [TagController::class, 'destroy']);
+    });
+
+    Route::prefix('transactions')->group(function () {
+        Route::get('/', [TransactionController::class, 'index']);
+        Route::post('/', [TransactionController::class, 'store']);
+        Route::post('/bulk', TransactionBulkController::class);
+        Route::post('/suggestions', TransactionSuggestionController::class);
+        Route::get('/{transaction}', [TransactionController::class, 'show']);
+        Route::put('/{transaction}', [TransactionController::class, 'update']);
+        Route::delete('/{transaction}', [TransactionController::class, 'destroy']);
+        Route::post('/{transaction}/splits', [TransactionSplitController::class, 'store']);
+        Route::delete('/{transaction}/splits/{split}', [TransactionSplitController::class, 'destroy']);
     });
 });

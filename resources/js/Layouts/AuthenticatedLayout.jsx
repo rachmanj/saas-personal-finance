@@ -5,12 +5,14 @@ import {
     WalletOutlined,
     TagsOutlined,
     AppstoreOutlined,
+    TransactionOutlined,
 } from '@ant-design/icons';
 
 const { Header, Sider, Content } = Layout;
 
 const menuItems = [
     { key: '/dashboard', icon: <DashboardOutlined />, label: <Link href="/dashboard">Dashboard</Link> },
+    { key: '/transactions', icon: <TransactionOutlined />, label: <Link href="/transactions">Transactions</Link> },
     { key: '/accounts', icon: <WalletOutlined />, label: <Link href="/accounts">Accounts</Link> },
     { key: '/categories', icon: <AppstoreOutlined />, label: <Link href="/categories">Categories</Link> },
     { key: '/tags', icon: <TagsOutlined />, label: <Link href="/tags">Tags</Link> },
