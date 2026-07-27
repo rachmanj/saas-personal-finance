@@ -2,6 +2,10 @@ import { createRoot } from 'react-dom/client';
 import { createInertiaApp } from '@inertiajs/react';
 import { ConfigProvider, theme } from 'antd';
 import { ThemeProvider, useTheme } from './Contexts/ThemeContext';
+import { registerSW } from './utils/swRegistration';
+import InstallPrompt from './Components/PWA/InstallPrompt';
+
+registerSW();
 
 createInertiaApp({
     resolve: (name) => {
@@ -31,6 +35,7 @@ function ThemedApp({ App, props }) {
             }}
         >
             <App {...props} />
+            <InstallPrompt />
         </ConfigProvider>
     );
 }

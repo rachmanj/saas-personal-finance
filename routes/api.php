@@ -15,6 +15,8 @@ use App\Http\Controllers\Api\TransactionSuggestionController;
 use App\Http\Controllers\Api\RecurringTransactionController;
 use App\Http\Controllers\Api\SavingGoalController;
 use App\Http\Controllers\Api\ReportController;
+use App\Http\Controllers\Api\BillReminderController;
+use App\Http\Controllers\Api\ExportController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware(['auth:sanctum'])->group(function () {
@@ -110,5 +112,24 @@ Route::middleware(['auth:sanctum'])->group(function () {
         Route::get('/trend', [ReportController::class, 'trend']);
         Route::get('/year-over-year', [ReportController::class, 'yearOverYear']);
         Route::get('/net-worth', [ReportController::class, 'netWorth']);
+    });
+
+    Route::prefix('bill-reminders')->group(function () {
+        Route::get('/', [BillReminderController::class, 'index']);
+        Route::post('/', [BillReminderController::class, 'store']);
+        Route::get('/due-soon', [BillReminderController::class, 'dueSoon']);
+        Route::post('/subscribe', [BillReminderController::class, 'subscribe']);
+        Route::get('/{billReminder}', [BillReminderController::class, 'show']);
+        Route::put('/{billReminder}', [BillReminderController::class, 'update']);
+        Route::delete('/{billReminder}', [BillReminderController::class, 'destroy']);
+        Route::put('/{billReminder}/paid', [BillReminderController::class, 'paid']);
+    });
+
+    Route::prefix('export')->group(function () {
+        Route::get('/pdf', [ExportController::class, 'pdf']);
+        Route::get('/csv', [ExportController::class, 'csv']);
+        Route::get('/ofx', [ExportController::class, 'ofx']);
+        Route::post('/google-sheets', [ExportController::class, 'googleSheets']);
+        Route::get('/download/{type}/{filename}', [ExportController::class, 'download']);
     });
 });

@@ -60,4 +60,8 @@ Route::middleware('auth')->group(function () {
     Route::get('/imports/create', function () {
         return inertia('Imports/Create');
     })->name('imports.create');
+
+    Route::get('/reminders', fn () => inertia('Reminders/Index'))->name('reminders');
+
+    Route::get('/reports', fn () => inertia('Reports/Index'))->name('reports');
 });

@@ -8,6 +8,8 @@ import {
     TransactionOutlined,
     PieChartOutlined,
     SyncOutlined,
+    BellOutlined,
+    DownloadOutlined,
 } from '@ant-design/icons';
 
 const { Header, Sider, Content } = Layout;
@@ -17,6 +19,8 @@ const menuItems = [
     { key: '/transactions', icon: <TransactionOutlined />, label: <Link href="/transactions">Transactions</Link> },
     { key: '/budgets', icon: <PieChartOutlined />, label: <Link href="/budgets">Budgets</Link> },
     { key: '/recurring-transactions', icon: <SyncOutlined />, label: <Link href="/recurring-transactions">Recurring</Link> },
+    { key: '/reminders', icon: <BellOutlined />, label: <Link href="/reminders">Reminders</Link> },
+    { key: '/reports', icon: <DownloadOutlined />, label: <Link href="/reports">Reports</Link> },
     { key: '/accounts', icon: <WalletOutlined />, label: <Link href="/accounts">Accounts</Link> },
     { key: '/categories', icon: <AppstoreOutlined />, label: <Link href="/categories">Categories</Link> },
     { key: '/tags', icon: <TagsOutlined />, label: <Link href="/tags">Tags</Link> },
