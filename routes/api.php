@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\AccountController;
+use App\Http\Controllers\Api\BudgetController;
 use App\Http\Controllers\Api\CategoryController;
 use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\ImportController;
@@ -58,6 +59,15 @@ Route::middleware(['auth:sanctum'])->group(function () {
 
     Route::prefix('dashboard')->group(function () {
         Route::get('/summary', [DashboardController::class, 'summary']);
+    });
+
+    Route::prefix('budgets')->group(function () {
+        Route::get('/', [BudgetController::class, 'index']);
+        Route::post('/', [BudgetController::class, 'store']);
+        Route::get('/alerts', [BudgetController::class, 'alerts']);
+        Route::get('/{budget}', [BudgetController::class, 'show']);
+        Route::put('/{budget}', [BudgetController::class, 'update']);
+        Route::delete('/{budget}', [BudgetController::class, 'destroy']);
     });
 
     Route::prefix('imports')->group(function () {
