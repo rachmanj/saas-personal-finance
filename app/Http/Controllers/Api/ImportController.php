@@ -93,6 +93,18 @@ class ImportController extends Controller
         ], 201);
     }
 
+    public function show(Import $import): JsonResponse
+    {
+        $import->load(['account', 'user']);
+
+        return response()->json([
+            'data' => $import,
+            'message' => 'Import retrieved',
+            'errors' => null,
+            'meta' => null,
+        ]);
+    }
+
     public function preview(Import $import, CsvImportParser $csvParser, OfxImportParser $ofxParser): JsonResponse
     {
         $filePath = Storage::disk('imports')->path($import->file_path);

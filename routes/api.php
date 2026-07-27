@@ -1,7 +1,6 @@
 <?php
 
 use App\Http\Controllers\Api\AccountController;
-use App\Http\Controllers\Api\BudgetController;
 use App\Http\Controllers\Api\CategoryController;
 use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\ImportController;
@@ -55,15 +54,6 @@ Route::middleware(['auth:sanctum'])->group(function () {
         Route::delete('/{transaction}', [TransactionController::class, 'destroy']);
         Route::post('/{transaction}/splits', [TransactionSplitController::class, 'store']);
         Route::delete('/{transaction}/splits/{split}', [TransactionSplitController::class, 'destroy']);
-    });
-
-    Route::prefix('budgets')->group(function () {
-        Route::get('/alerts', [BudgetController::class, 'alerts']);
-        Route::get('/', [BudgetController::class, 'index']);
-        Route::post('/', [BudgetController::class, 'store']);
-        Route::get('/{budget}', [BudgetController::class, 'show']);
-        Route::put('/{budget}', [BudgetController::class, 'update']);
-        Route::delete('/{budget}', [BudgetController::class, 'destroy']);
     });
 
     Route::prefix('dashboard')->group(function () {

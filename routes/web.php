@@ -48,4 +48,12 @@ Route::middleware('auth')->group(function () {
     Route::get('/transactions/{id}', function (string $id) {
         return inertia('Transactions/Show', ['id' => $id]);
     })->name('transactions.show');
+
+    Route::get('/imports', function () {
+        return inertia('Imports/Index');
+    })->name('imports.index');
+
+    Route::get('/imports/create', function () {
+        return inertia('Imports/Create');
+    })->name('imports.create');
 });
