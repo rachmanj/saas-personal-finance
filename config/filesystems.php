@@ -60,6 +60,20 @@ return [
             'report' => false,
         ],
 
+        'receipts' => [
+            'driver' => 'local',
+            'root' => storage_path('app/receipts'),
+            'visibility' => 'private',
+            'throw' => true,
+        ],
+
+        'voice_notes' => [
+            'driver' => 'local',
+            'root' => storage_path('app/voice-notes'),
+            'visibility' => 'private',
+            'throw' => true,
+        ],
+
     ],
 
     /*
