@@ -12,6 +12,7 @@ use App\Http\Controllers\Api\TransactionBulkController;
 use App\Http\Controllers\Api\TransactionController;
 use App\Http\Controllers\Api\TransactionSplitController;
 use App\Http\Controllers\Api\TransactionSuggestionController;
+use App\Http\Controllers\Api\RecurringTransactionController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware(['auth:sanctum'])->group(function () {
@@ -68,6 +69,17 @@ Route::middleware(['auth:sanctum'])->group(function () {
         Route::get('/{budget}', [BudgetController::class, 'show']);
         Route::put('/{budget}', [BudgetController::class, 'update']);
         Route::delete('/{budget}', [BudgetController::class, 'destroy']);
+    });
+
+    Route::prefix('recurring-transactions')->group(function () {
+        Route::get('/', [RecurringTransactionController::class, 'index']);
+        Route::post('/', [RecurringTransactionController::class, 'store']);
+        Route::get('/upcoming', [RecurringTransactionController::class, 'upcoming']);
+        Route::get('/{recurringTransaction}', [RecurringTransactionController::class, 'show']);
+        Route::put('/{recurringTransaction}', [RecurringTransactionController::class, 'update']);
+        Route::delete('/{recurringTransaction}', [RecurringTransactionController::class, 'destroy']);
+        Route::post('/{recurringTransaction}/skip', [RecurringTransactionController::class, 'skip']);
+        Route::post('/{recurringTransaction}/post-now', [RecurringTransactionController::class, 'postNow']);
     });
 
     Route::prefix('imports')->group(function () {

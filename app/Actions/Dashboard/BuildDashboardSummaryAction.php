@@ -2,14 +2,20 @@
 
 namespace App\Actions\Dashboard;
 
+use App\Actions\Budgets\CalculateBudgetUtilizationAction;
 use App\Models\Account;
+use App\Models\Budget;
+use App\Models\RecurringTransaction;
 use App\Models\Transaction;
 use App\Services\CurrencyConverterService;
 use Illuminate\Support\Carbon;
 
 class BuildDashboardSummaryAction
 {
-    public function __construct(private CurrencyConverterService $converter) {}
+    public function __construct(
+        private CurrencyConverterService $converter,
+        private CalculateBudgetUtilizationAction $utilizationAction,
+    ) {}
 
     public function execute(int $teamId): array
     {
@@ -29,8 +35,8 @@ class BuildDashboardSummaryAction
             'expense_total' => $expenseTotal,
             'net_worth' => $netWorth,
             'last_10_transactions' => $last10Transactions,
-            'budgets' => [],
-            'upcoming_recurring' => [],
+            'budgets' => $this->getBudgetAlerts(),
+            'upcoming_recurring' => $this->getUpcomingRecurring(),
             'saving_goals' => [],
         ];
     }
@@ -64,6 +70,30 @@ class BuildDashboardSummaryAction
             ->with(['account:id,name,currency', 'category:id,name,color,icon'])
             ->orderByDesc('transaction_date')
             ->orderByDesc('id')
+            ->limit(10)
+            ->get()
+            ->toArray();
+    }
+
+    private function getBudgetAlerts(): array
+    {
+        return Budget::with('category')
+            ->get()
+            ->map(fn (Budget $budget) => [
+                ...$budget->toArray(),
+                'utilization' => $this->utilizationAction->execute($budget),
+            ])
+            ->filter(fn (array $budget) => in_array($budget['utilization']['status'], ['warning', 'over'], true))
+            ->values()
+            ->all();
+    }
+
+    private function getUpcomingRecurring(): array
+    {
+        return RecurringTransaction::where('is_active', true)
+            ->where('next_due_date', '>=', today())
+            ->where('next_due_date', '<=', now()->addDays(30))
+            ->orderBy('next_due_date')
             ->limit(10)
             ->get()
             ->toArray();
