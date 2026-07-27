@@ -2,7 +2,10 @@
 
 use App\Http\Controllers\Api\AccountController;
 use App\Http\Controllers\Api\CategoryController;
+use App\Http\Controllers\Api\DashboardController;
+use App\Http\Controllers\Api\OcrTransactionController;
 use App\Http\Controllers\Api\TagController;
+use App\Http\Controllers\Api\VoiceTransactionController;
 use App\Http\Controllers\Api\TransactionBulkController;
 use App\Http\Controllers\Api\TransactionController;
 use App\Http\Controllers\Api\TransactionSplitController;
@@ -41,10 +44,18 @@ Route::middleware(['auth:sanctum'])->group(function () {
         Route::post('/', [TransactionController::class, 'store']);
         Route::post('/bulk', TransactionBulkController::class);
         Route::post('/suggestions', TransactionSuggestionController::class);
+        Route::post('/ocr', [OcrTransactionController::class, 'store']);
+        Route::get('/ocr/{ocrJob}/status', [OcrTransactionController::class, 'status']);
+        Route::post('/voice', [VoiceTransactionController::class, 'store']);
+        Route::get('/voice/{voiceJob}/status', [VoiceTransactionController::class, 'status']);
         Route::get('/{transaction}', [TransactionController::class, 'show']);
         Route::put('/{transaction}', [TransactionController::class, 'update']);
         Route::delete('/{transaction}', [TransactionController::class, 'destroy']);
         Route::post('/{transaction}/splits', [TransactionSplitController::class, 'store']);
         Route::delete('/{transaction}/splits/{split}', [TransactionSplitController::class, 'destroy']);
+    });
+
+    Route::prefix('dashboard')->group(function () {
+        Route::get('/summary', [DashboardController::class, 'summary']);
     });
 });
