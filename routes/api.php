@@ -13,6 +13,8 @@ use App\Http\Controllers\Api\TransactionController;
 use App\Http\Controllers\Api\TransactionSplitController;
 use App\Http\Controllers\Api\TransactionSuggestionController;
 use App\Http\Controllers\Api\RecurringTransactionController;
+use App\Http\Controllers\Api\SavingGoalController;
+use App\Http\Controllers\Api\ReportController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware(['auth:sanctum'])->group(function () {
@@ -90,5 +92,23 @@ Route::middleware(['auth:sanctum'])->group(function () {
         Route::post('/{import}/process', [ImportController::class, 'process']);
         Route::post('/{import}/confirm', [ImportController::class, 'confirm']);
         Route::delete('/{import}', [ImportController::class, 'destroy']);
+    });
+
+    Route::prefix('saving-goals')->group(function () {
+        Route::get('/', [SavingGoalController::class, 'index']);
+        Route::post('/', [SavingGoalController::class, 'store']);
+        Route::get('/{savingGoal}', [SavingGoalController::class, 'show']);
+        Route::put('/{savingGoal}', [SavingGoalController::class, 'update']);
+        Route::delete('/{savingGoal}', [SavingGoalController::class, 'destroy']);
+        Route::post('/{savingGoal}/contributions', [SavingGoalController::class, 'addContribution']);
+    });
+
+    Route::prefix('reports')->group(function () {
+        Route::get('/spending-by-category', [ReportController::class, 'spendingByCategory']);
+        Route::get('/income-vs-expense', [ReportController::class, 'incomeVsExpense']);
+        Route::get('/monthly-summary', [ReportController::class, 'monthlySummary']);
+        Route::get('/trend', [ReportController::class, 'trend']);
+        Route::get('/year-over-year', [ReportController::class, 'yearOverYear']);
+        Route::get('/net-worth', [ReportController::class, 'netWorth']);
     });
 });
