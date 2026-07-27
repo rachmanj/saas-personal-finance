@@ -17,6 +17,7 @@ use App\Http\Controllers\Api\SavingGoalController;
 use App\Http\Controllers\Api\ReportController;
 use App\Http\Controllers\Api\BillReminderController;
 use App\Http\Controllers\Api\ExportController;
+use App\Http\Controllers\Api\AiCategorizationController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware(['auth:sanctum'])->group(function () {
@@ -123,6 +124,16 @@ Route::middleware(['auth:sanctum'])->group(function () {
         Route::put('/{billReminder}', [BillReminderController::class, 'update']);
         Route::delete('/{billReminder}', [BillReminderController::class, 'destroy']);
         Route::put('/{billReminder}/paid', [BillReminderController::class, 'paid']);
+    });
+
+    Route::prefix('ai')->group(function () {
+        Route::post('/categorize', [AiCategorizationController::class, 'categorize']);
+        Route::post('/categorize/batch', [AiCategorizationController::class, 'batchCategorize']);
+        Route::get('/categorization-rules', [AiCategorizationController::class, 'indexRules']);
+        Route::post('/categorization-rules', [AiCategorizationController::class, 'storeRule']);
+        Route::put('/categorization-rules/{categorizationRule}', [AiCategorizationController::class, 'updateRule']);
+        Route::delete('/categorization-rules/{categorizationRule}', [AiCategorizationController::class, 'destroyRule']);
+        Route::get('/categorization-accuracy', [AiCategorizationController::class, 'accuracy']);
     });
 
     Route::prefix('export')->group(function () {
