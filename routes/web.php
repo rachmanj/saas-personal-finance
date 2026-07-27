@@ -41,6 +41,10 @@ Route::middleware('auth')->group(function () {
         return inertia('Tags/Index');
     })->name('tags.index');
 
+    Route::get('/budgets', fn () => inertia('Budgets/Index'))->name('budgets');
+
+    Route::get('/recurring-transactions', fn () => inertia('RecurringTransactions/Index'))->name('recurring-transactions');
+
     Route::get('/transactions', function () {
         return inertia('Transactions/Index');
     })->name('transactions.index');

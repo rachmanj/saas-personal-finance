@@ -53,8 +53,6 @@ export default function Dashboard() {
         expense_total = 0,
         net_worth = 0,
         last_10_transactions = [],
-        budgets = [],
-        upcoming_recurring = [],
         saving_goals = [],
     } = data || {};
 
@@ -77,7 +75,7 @@ export default function Dashboard() {
                     </Col>
                     <Col xs={24} lg={12}>
                         <Card title="Upcoming">
-                            <UpcomingWidget upcoming={upcoming_recurring} />
+                            <UpcomingWidget />
                         </Card>
                     </Col>
                 </Row>
@@ -90,7 +88,7 @@ export default function Dashboard() {
                     </Col>
                     <Col xs={24} lg={12}>
                         <Card title="Budget Alerts">
-                            <BudgetAlertWidget budgets={budgets} />
+                            <BudgetAlertWidget />
                         </Card>
                     </Col>
                 </Row>
