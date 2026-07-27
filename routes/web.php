@@ -1,6 +1,10 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\Billing\BillingController;
+use App\Http\Controllers\Billing\CheckoutController;
+use App\Http\Controllers\Billing\PortalController;
+use App\Http\Controllers\Billing\WebhookController;
 
 require __DIR__.'/auth.php';
 
@@ -64,4 +68,10 @@ Route::middleware('auth')->group(function () {
     Route::get('/reminders', fn () => inertia('Reminders/Index'))->name('reminders');
 
     Route::get('/reports', fn () => inertia('Reports/Index'))->name('reports');
+
+    Route::get('/settings/billing', [BillingController::class, 'index'])->name('settings.billing');
+    Route::post('/billing/checkout', CheckoutController::class)->name('billing.checkout');
+    Route::get('/billing/portal', PortalController::class)->name('billing.portal');
 });
+
+Route::post('/webhook/stripe', [WebhookController::class, 'handleWebhook'])->name('webhook.stripe');

@@ -10,6 +10,7 @@ import {
     SyncOutlined,
     BellOutlined,
     DownloadOutlined,
+    SettingOutlined,
 } from '@ant-design/icons';
 
 const { Header, Sider, Content } = Layout;
@@ -24,6 +25,7 @@ const menuItems = [
     { key: '/accounts', icon: <WalletOutlined />, label: <Link href="/accounts">Accounts</Link> },
     { key: '/categories', icon: <AppstoreOutlined />, label: <Link href="/categories">Categories</Link> },
     { key: '/tags', icon: <TagsOutlined />, label: <Link href="/tags">Tags</Link> },
+    { key: '/settings', icon: <SettingOutlined />, label: <Link href="/settings/billing">Settings</Link> },
 ];
 
 /**

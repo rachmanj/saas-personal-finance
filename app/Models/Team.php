@@ -7,15 +7,18 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Laravel\Cashier\Billable;
 
 class Team extends Model
 {
+    use Billable;
     use HasFactory;
 
     protected $fillable = ['name', 'user_id', 'personal_team'];
 
     protected $casts = [
         'personal_team' => 'boolean',
+        'trial_ends_at' => 'datetime',
     ];
 
     public function owner(): BelongsTo
@@ -33,5 +36,10 @@ class Team extends Model
     public function invitations(): HasMany
     {
         return $this->hasMany(TeamInvitation::class);
+    }
+
+    public function stripeEmail(): ?string
+    {
+        return $this->owner?->email;
     }
 }

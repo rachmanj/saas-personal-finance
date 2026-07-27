@@ -2,9 +2,11 @@
 
 namespace App\Providers;
 
+use App\Models\Team;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\ServiceProvider;
 use Inertia\Inertia;
+use Laravel\Cashier\Cashier;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -21,6 +23,9 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        Cashier::useCustomerModel(Team::class);
+        Cashier::ignoreRoutes();
+
         Inertia::share([
             'auth' => [
                 'user' => fn () => Auth::check() ? Auth::user()->only('id', 'name', 'email') : null,
