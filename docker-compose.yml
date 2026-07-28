@@ -1,0 +1,64 @@
+services:
+  app:
+    build: .
+    container_name: finance-app
+    restart: unless-stopped
+    ports:
+      - "3003:80"
+    environment:
+      - APP_NAME=PersonalFinance
+      - APP_ENV=production
+      - APP_DEBUG=false
+      - APP_URL=http://100.77.117.2:3003
+      - DB_CONNECTION=mysql
+      - DB_HOST=mysql
+      - DB_PORT=3306
+      - DB_DATABASE=saas_personal_finance
+      - DB_USERNAME=finance
+      - DB_PASSWORD=${DB_PASSWORD:-finance_secret_2026}
+      - REDIS_HOST=redis
+      - REDIS_PASSWORD=null
+      - QUEUE_CONNECTION=redis
+    volumes:
+      - app_storage:/var/www/storage
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    networks:
+      - finance-network
+
+  mysql:
+    image: mysql:8.4
+    container_name: finance-mysql
+    restart: unless-stopped
+    environment:
+      - MYSQL_ROOT_PASSWORD=${DB_ROOT_PASSWORD:-root_secret_2026}
+      - MYSQL_DATABASE=saas_personal_finance
+      - MYSQL_USER=finance
+      - MYSQL_PASSWORD=${DB_PASSWORD:-finance_secret_2026}
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - finance-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: finance-redis
+    restart: unless-stopped
+    networks:
+      - finance-network
+
+volumes:
+  app_storage:
+  mysql_data:
+
+networks:
+  finance-network:
+    driver: bridge
