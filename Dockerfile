@@ -40,8 +40,11 @@ RUN docker-php-ext-configure gd --with-freetype --with-jpeg \
         exif \
         pcntl
 
-# Redis extension
-RUN pecl install redis && docker-php-ext-enable redis
+# Redis extension (needs build tools temporarily)
+RUN apk add --no-cache --virtual .build-deps autoconf build-base \
+    && pecl install redis \
+    && docker-php-ext-enable redis \
+    && apk del .build-deps
 
 # Composer
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
