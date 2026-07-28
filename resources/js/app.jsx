@@ -1,6 +1,7 @@
 import { createRoot } from 'react-dom/client';
 import { createInertiaApp } from '@inertiajs/react';
 import { ConfigProvider, theme } from 'antd';
+import enUS from 'antd/locale/en_US';
 import { ThemeProvider, useTheme } from './Contexts/ThemeContext';
 import { registerSW } from './utils/swRegistration';
 import InstallPrompt from './Components/PWA/InstallPrompt';
@@ -28,6 +29,7 @@ function ThemedApp({ App, props }) {
 
     return (
         <ConfigProvider
+            locale={enUS}
             theme={{
                 algorithm:
                     currentTheme === 'dark'
