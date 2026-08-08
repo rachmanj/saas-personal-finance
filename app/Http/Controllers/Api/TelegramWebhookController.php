@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Actions\Telegram\ProcessMessageAction;
 use App\Http\Controllers\Controller;
 use App\Services\TelegramBotService;
 use Illuminate\Http\Request;
@@ -10,7 +11,7 @@ use Illuminate\Support\Facades\Log;
 
 class TelegramWebhookController extends Controller
 {
-    public function handle(Request $request, TelegramBotService $bot): Response
+    public function handle(Request $request): Response
     {
         // Validate secret token
         $headerToken = $request->header('X-Telegram-Bot-Api-Secret-Token');
@@ -21,24 +22,26 @@ class TelegramWebhookController extends Controller
         }
 
         $update = $request->all();
-        Log::info('Telegram webhook received', ['update' => $update]);
+        Log::info('Telegram webhook received', ['update_id' => $update['update_id'] ?? null]);
 
-        // Minimal auto-reply (Phase 2 will replace with full NLP parsing)
-        $message = $update['message'] ?? null;
-        if ($message && isset($message['chat']['id']) && isset($message['text'])) {
-            $chatId = $message['chat']['id'];
-            $text = $message['text'];
+        try {
+            $action = app(ProcessMessageAction::class);
+            $reply = $action->handle($update);
 
-            if (str_starts_with($text, '/start')) {
-                $reply = "👋 Halo! Aku *Ngopi Dulu Donk* — asisten catatan keuangan kamu.\n\n"
-                    . "Ketik apa yang kamu beli, contoh:\n"
-                    . "• \"makan siang 50rb\"\n"
-                    . "• \"gaji 5jt\"\n\n"
-                    . "Fitur lengkap segera hadir! 🚀";
-                $bot->sendMessage($chatId, $reply, 'Markdown');
-            } else {
-                $bot->sendMessage($chatId, "📝 Pesan diterima: \"{$text}\"\n\n*Fitur input transaksi sedang dikembangkan.*\nNanti kamu bisa langsung catat transaksi lewat chat ini! 🛠️", 'Markdown');
+            // Send reply back to Telegram
+            if (!empty($reply['chat_id']) && !empty($reply['text'])) {
+                $bot = app(TelegramBotService::class);
+                $bot->sendMessage(
+                    $reply['chat_id'],
+                    $reply['text'],
+                    $reply['parse_mode'] ?? null
+                );
             }
+        } catch (\Throwable $e) {
+            Log::error('Telegram webhook failed', [
+                'error' => $e->getMessage(),
+                'update' => $update,
+            ]);
         }
 
         return response()->noContent(200);
