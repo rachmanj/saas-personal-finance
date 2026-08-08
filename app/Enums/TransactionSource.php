@@ -9,4 +9,5 @@ enum TransactionSource: string
     case Voice = 'voice';
     case Import = 'import';
     case Recurring = 'recurring';
+    case Telegram = 'telegram';
 }

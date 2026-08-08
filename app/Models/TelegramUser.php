@@ -10,7 +10,7 @@ class TelegramUser extends Model
 {
     protected $fillable = [
         'user_id', 'chat_id', 'username', 'first_name', 'last_name',
-        'is_active', 'settings', 'linked_at',
+        'is_active', 'settings', 'linked_at', 'language_code',
     ];
 
     protected function casts(): array

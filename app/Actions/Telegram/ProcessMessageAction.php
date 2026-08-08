@@ -1,0 +1,368 @@
+<?php
+
+namespace App\Actions\Telegram;
+
+use App\Actions\Transactions\CreateTransactionAction;
+use App\Models\Account;
+use App\Models\TelegramMessage;
+use App\Models\TelegramUser;
+use App\Services\CategorizationRuleService;
+use App\Services\CurrencyConverterService;
+use Illuminate\Support\Facades\Log;
+
+class ProcessMessageAction
+{
+    /**
+     * Process an incoming Telegram update and return a reply payload.
+     *
+     * @return array{chat_id: string, text: string, parse_mode?: string}
+     */
+    public function handle(array $update): array
+    {
+        $message = $update['message'] ?? null;
+
+        if (!$message) {
+            return $this->reply('', 'Invalid update');
+        }
+
+        $chat = $message['chat'] ?? [];
+        $from = $message['from'] ?? [];
+        $chatId = (string) ($chat['id'] ?? '0');
+        $text = $message['text'] ?? '';
+
+        // Find or create TelegramUser
+        $telegramUser = $this->findOrCreateTelegramUser($chat, $from);
+
+        // Handle commands
+        if (!empty($text) && str_starts_with($text, '/start')) {
+            return $this->handleStartCommand($chatId, $telegramUser, $from);
+        }
+
+        if (!empty($text) && str_starts_with($text, '/help')) {
+            return $this->handleHelpCommand($chatId);
+        }
+
+        // Handle photo/voice messages
+        if (isset($message['photo']) || isset($message['voice'])) {
+            // Save inbound message record
+            $messageType = isset($message['photo']) ? 'photo' : 'voice';
+            $fileId = isset($message['photo'])
+                ? end($message['photo'])['file_id'] ?? null
+                : ($message['voice']['file_id'] ?? null);
+
+            $this->saveTelegramMessage($telegramUser, 'inbound', $messageType, '', $fileId, 'processed');
+
+            $reply = "📸📢 Fitur ini segera hadir!\n\nUntuk sekarang, kamu bisa catat transaksi dengan teks. Contoh:\n• <b>makan siang 50rb</b>\n• <b>gaji 5jt</b>\n\nKetik /help untuk panduan lengkap.";
+            return $this->reply($chatId, $reply);
+        }
+
+        // Handle text messages — parse and create transaction
+        if (!empty($text) && !str_starts_with($text, '/')) {
+            return $this->handleTextMessage($chatId, $telegramUser, $text, $message);
+        }
+
+        // Fallback
+        return $this->reply($chatId, 'Pesan tidak dikenali. Ketik /help untuk bantuan.');
+    }
+
+    /**
+     * Handle a text message: parse, create transaction, reply.
+     */
+    private function handleTextMessage(string $chatId, TelegramUser $telegramUser, string $text, array $message): array
+    {
+        // Save inbound message
+        $this->saveTelegramMessage($telegramUser, 'inbound', 'text', $text, null, 'pending');
+
+        // Parse the text
+        $parser = new ParseTransactionTextAction;
+        $parsed = $parser->execute($text);
+
+        // No amount found
+        if ($parsed['amount'] === null) {
+            // Update message status
+            $this->updateLastMessage($telegramUser, 'failed', 'No amount detected');
+
+            $reply = "Maaf, aku nggak bisa menemukan jumlah uang di pesanmu. 😅\n\n"
+                . "Coba format seperti ini ya:\n"
+                . "• <b>makan siang 50rb</b>\n"
+                . "• <b>gaji 5jt</b>\n"
+                . "• <b>bensin 100k</b>\n\n"
+                . "Ketik /help untuk panduan lengkap.";
+            return $this->reply($chatId, $reply);
+        }
+
+        // Find account for the linked user
+        $account = $this->findAccount($telegramUser);
+
+        if (!$account) {
+            $this->updateLastMessage($telegramUser, 'failed', 'No account found');
+
+            if (!$telegramUser->user_id) {
+                $reply = "Kamu belum menghubungkan akun Telegram ke akun Ngopi Dulu Donk.\n\n"
+                    . "Silakan buka aplikasi web dan hubungkan Telegram kamu dari menu Pengaturan. 📱";
+                return $this->reply($chatId, $reply);
+            }
+
+            $reply = "Tidak ada rekening aktif ditemukan. Silakan buat rekening dulu di aplikasi web. 🏦";
+            return $this->reply($chatId, $reply);
+        }
+
+        // Create the transaction
+        try {
+            $transaction = $this->createTransaction($telegramUser, $account, $parsed);
+        } catch (\Throwable $e) {
+            Log::error('Telegram: failed to create transaction', [
+                'error' => $e->getMessage(),
+                'chat_id' => $chatId,
+            ]);
+
+            $this->updateLastMessage($telegramUser, 'failed', $e->getMessage());
+
+            $reply = "⚠️ Gagal mencatat transaksi. Coba lagi ya.";
+            return $this->reply($chatId, $reply);
+        }
+
+        // Update message with transaction_id and status
+        $this->updateLastMessageWithTransaction($telegramUser, $transaction->id);
+
+        // Format reply
+        $reply = $this->formatTransactionReply($transaction, $parsed);
+
+        return $this->reply($chatId, $reply);
+    }
+
+    /**
+     * Handle the /start command.
+     */
+    private function handleStartCommand(string $chatId, TelegramUser $telegramUser, array $from): array
+    {
+        $this->saveTelegramMessage($telegramUser, 'inbound', 'command', '/start', null, 'processed');
+
+        $firstName = htmlspecialchars($from['first_name'] ?? 'Sobat');
+
+        if (!$telegramUser->user_id) {
+            $reply = "👋 Halo <b>{$firstName}</b>! Aku <b>Ngopi Dulu Donk</b> — asisten catatan keuangan kamu.\n\n"
+                . "Sebelum mulai catat transaksi, kamu perlu menghubungkan Telegram ke akun web dulu ya.\n\n"
+                . "🔗 <b>Cara menghubungkan:</b>\n"
+                . "1. Buka aplikasi web Ngopi Dulu Donk\n"
+                . "2. Masuk ke <b>Pengaturan</b> → <b>Telegram</b>\n"
+                . "3. Klik <b>Hubungkan</b> dan ikuti petunjuknya\n\n"
+                . "Setelah terhubung, kamu bisa langsung catat transaksi lewat chat ini!\n\n"
+                . "Ketik /help untuk panduan lengkap. 🚀";
+        } else {
+            $reply = "👋 Halo lagi <b>{$firstName}</b>!\n\n"
+                . "Akun kamu sudah terhubung. 🎉\n\n"
+                . "Langsung catat transaksi aja, contoh:\n"
+                . "• <b>makan siang 50rb</b>\n"
+                . "• <b>gaji 5jt</b>\n"
+                . "• <b>bensin 100k</b>\n\n"
+                . "Ketik /help untuk panduan lengkap!";
+        }
+
+        return $this->reply($chatId, $reply);
+    }
+
+    /**
+     * Handle the /help command.
+     */
+    private function handleHelpCommand(string $chatId): array
+    {
+        $reply = "📖 <b>Ngopi Dulu Donk — Panduan</b>\n\n"
+            . "<b>Catat Pengeluaran:</b>\n"
+            . "• <code>makan siang 50rb</code>\n"
+            . "• <code>beli bensin 100k</code>\n"
+            . "• <code>bayar listrik 500rb</code>\n\n"
+            . "<b>Catat Pemasukan:</b>\n"
+            . "• <code>gaji 5jt</code>\n"
+            . "• <code>bonus 1.5jt</code>\n"
+            . "• <code>jual barang 200rb</code>\n\n"
+            . "<b>Format jumlah:</b>\n"
+            . "• <code>50rb</code> / <code>50ribu</code> = 50.000\n"
+            . "• <code>1.5jt</code> / <code>1,5juta</code> = 1.500.000\n"
+            . "• <code>100k</code> = 100.000\n"
+            . "• <code>50000</code> = 50.000\n\n"
+            . "<b>Perintah:</b>\n"
+            . "/start — Mulai bot\n"
+            . "/help — Tampilkan panduan ini";
+
+        return $this->reply($chatId, $reply);
+    }
+
+    /**
+     * Find or create a TelegramUser from chat/from data.
+     */
+    private function findOrCreateTelegramUser(array $chat, array $from): TelegramUser
+    {
+        $chatId = $chat['id'] ?? 0;
+
+        $telegramUser = TelegramUser::where('chat_id', $chatId)->first();
+
+        if (!$telegramUser) {
+            $telegramUser = TelegramUser::create([
+                'user_id' => null,
+                'chat_id' => $chatId,
+                'username' => $from['username'] ?? null,
+                'first_name' => $from['first_name'] ?? 'Unknown',
+                'last_name' => $from['last_name'] ?? null,
+                'language_code' => $from['language_code'] ?? null,
+                'is_active' => true,
+            ]);
+        }
+
+        return $telegramUser;
+    }
+
+    /**
+     * Find the active account for the Telegram user's team.
+     */
+    private function findAccount(TelegramUser $telegramUser): ?Account
+    {
+        if (!$telegramUser->user_id) {
+            return null;
+        }
+
+        $teamId = $telegramUser->user->current_team_id ?? null;
+
+        if (!$teamId) {
+            return null;
+        }
+
+        return Account::query()
+            ->where('team_id', $teamId)
+            ->where('is_active', true)
+            ->orderBy('id')
+            ->first();
+    }
+
+    /**
+     * Create a transaction from parsed data.
+     */
+    private function createTransaction(TelegramUser $telegramUser, Account $account, array $parsed): \App\Models\Transaction
+    {
+        $createAction = new CreateTransactionAction(new CurrencyConverterService);
+
+        $data = [
+            'team_id' => $telegramUser->user->current_team_id,
+            'user_id' => $telegramUser->user_id,
+            'account_id' => $account->id,
+            'type' => $parsed['type'],
+            'amount' => $parsed['amount'],
+            'currency' => $account->currency,
+            'description' => $parsed['description'],
+            'transaction_date' => now()->toDateString(),
+            'source' => 'telegram',
+        ];
+
+        $transaction = $createAction->execute($data);
+
+        // Auto-categorize
+        $this->autoCategorize($transaction, $parsed['description']);
+
+        return $transaction;
+    }
+
+    /**
+     * Auto-categorize the transaction using CategorizationRuleService.
+     */
+    private function autoCategorize(\App\Models\Transaction $transaction, string $description): void
+    {
+        try {
+            $ruleService = app(CategorizationRuleService::class);
+            $suggestion = $ruleService->suggest($description);
+
+            if ($suggestion['category_id']) {
+                $transaction->update(['category_id' => $suggestion['category_id']]);
+            }
+        } catch (\Throwable $e) {
+            Log::warning('Telegram: auto-categorize failed', ['error' => $e->getMessage()]);
+        }
+    }
+
+    /**
+     * Save a TelegramMessage record.
+     */
+    private function saveTelegramMessage(TelegramUser $telegramUser, string $direction, string $type, string $content, ?string $fileId = null, string $status = 'pending'): TelegramMessage
+    {
+        return TelegramMessage::create([
+            'telegram_user_id' => $telegramUser->id,
+            'direction' => $direction,
+            'message_type' => $type,
+            'content' => $content,
+            'file_id' => $fileId,
+            'status' => $status,
+            'created_at' => now(),
+        ]);
+    }
+
+    /**
+     * Update the last inbound message's status.
+     */
+    private function updateLastMessage(TelegramUser $telegramUser, string $status, ?string $error = null): void
+    {
+        $lastMessage = TelegramMessage::where('telegram_user_id', $telegramUser->id)
+            ->where('direction', 'inbound')
+            ->latest('created_at')
+            ->first();
+
+        if ($lastMessage) {
+            $lastMessage->update([
+                'status' => $status,
+                'error' => $error,
+            ]);
+        }
+    }
+
+    /**
+     * Update the last inbound message with transaction ID.
+     */
+    private function updateLastMessageWithTransaction(TelegramUser $telegramUser, int $transactionId): void
+    {
+        $lastMessage = TelegramMessage::where('telegram_user_id', $telegramUser->id)
+            ->where('direction', 'inbound')
+            ->latest('created_at')
+            ->first();
+
+        if ($lastMessage) {
+            $lastMessage->update([
+                'status' => 'processed',
+                'transaction_id' => $transactionId,
+            ]);
+        }
+    }
+
+    /**
+     * Format a transaction confirmation reply.
+     */
+    private function formatTransactionReply(\App\Models\Transaction $transaction, array $parsed): string
+    {
+        $emoji = $transaction->type->value === 'income' ? '💰' : '💸';
+        $label = $transaction->type->value === 'income' ? 'Pemasukan' : 'Pengeluaran';
+        $amount = number_format($transaction->amount, 0, ',', '.');
+
+        $reply = "{$emoji} <b>{$label} Dicatat!</b>\n\n"
+            . "📝 <b>Deskripsi:</b> {$transaction->description}\n"
+            . "💵 <b>Jumlah:</b> Rp {$amount}\n"
+            . "🏦 <b>Rekening:</b> {$transaction->account->name}\n"
+            . "📅 <b>Tanggal:</b> {$transaction->transaction_date->format('d M Y')}\n";
+
+        if ($transaction->category) {
+            $reply .= "📂 <b>Kategori:</b> {$transaction->category->name}\n";
+        }
+
+        $reply .= "\n✅ Transaksi berhasil dicatat!";
+
+        return $reply;
+    }
+
+    /**
+     * Build a reply payload.
+     */
+    private function reply(string $chatId, string $text): array
+    {
+        return [
+            'chat_id' => $chatId,
+            'text' => $text,
+            'parse_mode' => 'HTML',
+        ];
+    }
+}
