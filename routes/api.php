@@ -20,6 +20,10 @@ use App\Http\Controllers\Api\ExportController;
 use App\Http\Controllers\Api\AiCategorizationController;
 use Illuminate\Support\Facades\Route;
 
+// Public — Telegram webhook (no auth, validated by X-Telegram-Bot-Api-Secret-Token header)
+Route::post('/telegram/webhook', [\App\Http\Controllers\Api\TelegramWebhookController::class, 'handle'])
+    ->name('telegram.webhook');
+
 Route::middleware(['auth:sanctum'])->group(function () {
     Route::prefix('accounts')->group(function () {
         Route::get('/', [AccountController::class, 'index']);
