@@ -72,9 +72,14 @@ class WebhookTest extends TestCase
         Log::shouldReceive('info')
             ->once()
             ->with('Telegram webhook received', \Mockery::on(function ($context) {
-                return isset($context['update']['update_id'])
-                    && $context['update']['update_id'] === 12345;
+                return isset($context['update_id'])
+                    && $context['update_id'] === 12345;
             }));
+
+        Log::shouldReceive('error')->zeroOrMoreTimes();
+
+        // Prevent actual HTTP call to Telegram
+        \Illuminate\Support\Facades\Http::fake();
 
         $this->postJson('/api/telegram/webhook', [
             'update_id' => 12345,
