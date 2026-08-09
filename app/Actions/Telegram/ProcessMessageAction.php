@@ -67,6 +67,10 @@ class ProcessMessageAction
             return $this->handleCategoriesCommand($chatId, $telegramUser);
         }
 
+        if (!empty($text) && str_starts_with($text, '/delete')) {
+            return $this->handleDeleteCommand($chatId, $telegramUser, $text);
+        }
+
         // Handle photo/voice messages
         if (isset($message['photo']) || isset($message['voice'])) {
             $messageType = isset($message['photo']) ? 'photo' : 'voice';
@@ -516,6 +520,52 @@ class ProcessMessageAction
         }
 
         return $this->reply($chatId, implode("\n", $lines));
+    }
+
+    /**
+     * Handle the /delete command — delete a transaction by ID.
+     * Format: /delete [id]
+     */
+    private function handleDeleteCommand(string $chatId, TelegramUser $telegramUser, string $text): array
+    {
+        $teamId = $this->getLinkedTeamId($telegramUser, $chatId);
+
+        if ($teamId === null) {
+            return $this->unlinkedPrompt($chatId);
+        }
+
+        // Extract the transaction ID from the command text
+        $parts = explode(' ', trim($text), 2);
+        $searchValue = $parts[1] ?? '';
+
+        if (empty($searchValue)) {
+            return $this->reply($chatId, 'Transaksi tidak ditemukan');
+        }
+
+        // Search by ID (numeric) or by kode_transaksi (string)
+        $transaction = null;
+        if (is_numeric($searchValue)) {
+            $transaction = Transaction::where('team_id', $teamId)
+                ->where('id', (int) $searchValue)
+                ->first();
+        } else {
+            // Fallback: search by description containing the code
+            $transaction = Transaction::where('team_id', $teamId)
+                ->where('description', 'like', "%{$searchValue}%")
+                ->first();
+        }
+
+        if (!$transaction) {
+            return $this->reply($chatId, 'Transaksi tidak ditemukan');
+        }
+
+        $transactionId = $transaction->id;
+        $transaction->delete();
+
+        // Save outbound message
+        $this->saveTelegramMessage($telegramUser, 'outbound', 'command', "/delete {$transactionId}", null, 'processed');
+
+        return $this->reply($chatId, "🗑️ Transaksi #{$transactionId} dihapus");
     }
 
     /**

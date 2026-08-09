@@ -286,4 +286,81 @@ class ProcessMessageTest extends TestCase
 
         $this->assertStringContainsString('segera hadir', strip_tags($response['text']));
     }
+
+    public function test_delete_command_deletes_transaction_by_id(): void
+    {
+        // Create a transaction to delete
+        $transaction = Transaction::factory()->create([
+            'team_id' => $this->user->current_team_id,
+            'user_id' => $this->user->id,
+            'account_id' => $this->account->id,
+            'type' => 'expense',
+            'amount' => 50000,
+            'description' => 'makan siang',
+            'transaction_date' => now()->toDateString(),
+            'source' => 'telegram',
+        ]);
+
+        $update = $this->makeUpdate('/delete ' . $transaction->id);
+
+        $action = new ProcessMessageAction;
+        $response = $action->handle($update);
+
+        // Should confirm deletion
+        $this->assertStringContainsString('🗑️', $response['text']);
+        $this->assertStringContainsString('Transaksi', $response['text']);
+        $this->assertStringContainsString('dihapus', $response['text']);
+        $this->assertStringContainsString((string) $transaction->id, $response['text']);
+
+        // Transaction should be soft-deleted
+        $this->assertSoftDeleted('transactions', ['id' => $transaction->id]);
+    }
+
+    public function test_delete_command_with_nonexistent_id_returns_not_found(): void
+    {
+        $update = $this->makeUpdate('/delete 99999');
+
+        $action = new ProcessMessageAction;
+        $response = $action->handle($update);
+
+        $this->assertStringContainsString('Transaksi tidak ditemukan', $response['text']);
+    }
+
+    public function test_delete_command_requires_linked_account(): void
+    {
+        // Create unlinked telegram user
+        $unlinkedUser = TelegramUser::create([
+            'user_id' => null,
+            'chat_id' => 999999999,
+            'username' => 'unlinked',
+            'first_name' => 'Unlinked',
+            'is_active' => true,
+        ]);
+
+        $update = $this->makeUpdate('/delete 1', [
+            'message' => [
+                'message_id' => 99,
+                'chat' => ['id' => 999999999, 'type' => 'private'],
+                'from' => ['id' => 888888888, 'is_bot' => false, 'first_name' => 'Unlinked', 'username' => 'unlinked'],
+                'date' => time(),
+                'text' => '/delete 1',
+            ],
+        ]);
+
+        $action = new ProcessMessageAction;
+        $response = $action->handle($update);
+
+        // Should ask to link account
+        $this->assertStringContainsString('hubungkan', strtolower($response['text']));
+    }
+
+    public function test_delete_command_with_text_only_returns_not_found(): void
+    {
+        $update = $this->makeUpdate('/delete');
+
+        $action = new ProcessMessageAction;
+        $response = $action->handle($update);
+
+        $this->assertStringContainsString('Transaksi tidak ditemukan', $response['text']);
+    }
 }

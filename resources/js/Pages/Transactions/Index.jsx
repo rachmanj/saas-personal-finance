@@ -1,6 +1,6 @@
 import { useState, useCallback, useMemo } from 'react';
-import { Head, usePage } from '@inertiajs/react';
-import { App, Table, Button, Space, Tag, Tooltip } from 'antd';
+import { Head, usePage, router } from '@inertiajs/react';
+import { App, Table, Button, Space, Tag, Tooltip, Modal } from 'antd';
 import {
     PlusOutlined,
     EditOutlined,
@@ -8,8 +8,10 @@ import {
     ArrowUpOutlined,
     ArrowDownOutlined,
     SwapOutlined,
+    DeleteOutlined,
 } from '@ant-design/icons';
 import AuthenticatedLayout from '../../Layouts/AuthenticatedLayout';
+import { apiDelete } from '../../utils/api';
 import dayjs from 'dayjs';
 
 const typeColorMap = { income: 'green', expense: 'red', transfer: 'blue' };
@@ -17,6 +19,26 @@ const typeColorMap = { income: 'green', expense: 'red', transfer: 'blue' };
 export default function Index() {
     const { props } = usePage();
     const transactions = props.transactions || [];
+    const { message } = App.useApp();
+
+    const handleDelete = (record) => {
+        Modal.confirm({
+            title: 'Hapus transaksi?',
+            content: 'Yakin hapus transaksi ini?',
+            okText: 'Hapus',
+            okType: 'danger',
+            cancelText: 'Batal',
+            onOk: async () => {
+                try {
+                    await apiDelete(`/api/transactions/${record.id}`);
+                    message.success('Transaksi berhasil dihapus');
+                    router.reload();
+                } catch {
+                    message.error('Gagal menghapus transaksi');
+                }
+            },
+        });
+    };
 
     const columns = [
         { title: 'Tanggal', dataIndex: 'transaction_date', key: 'date', width: 100,
@@ -39,6 +61,16 @@ export default function Index() {
             render: (cat) => cat ? <Tag color={cat.color}>{cat.name}</Tag> : <Tag>—</Tag> },
         { title: 'Rekening', dataIndex: 'account', key: 'account', width: 120,
             render: (acc) => acc?.name || '—' },
+        { title: 'Aksi', key: 'actions', width: 60,
+            render: (_, record) => (
+                <Button
+                    icon={<DeleteOutlined />}
+                    size="small"
+                    danger
+                    onClick={() => handleDelete(record)}
+                />
+            ),
+        },
     ];
 
     return (
@@ -51,7 +83,7 @@ export default function Index() {
                     rowKey="id"
                     size="small"
                     pagination={{ pageSize: 25, showSizeChanger: true, showTotal: (t) => `${t} transaksi` }}
-                    scroll={{ x: 700 }}
+                    scroll={{ x: 750 }}
                 />
             </AuthenticatedLayout>
         </App>
