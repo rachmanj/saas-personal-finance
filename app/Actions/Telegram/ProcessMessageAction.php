@@ -102,6 +102,12 @@ class ProcessMessageAction
                         $parser = new \App\Actions\Telegram\ParseTransactionTextAction;
                         $parsed = $parser->execute($ocrResult['raw_text']);
 
+                        // Use OCR date if found and text didn't have one
+                        if (empty($parsed['date']) && !empty($ocrResult['date'])) {
+                            $parsed['date'] = \DateTime::createFromFormat('d/m/Y', $ocrResult['date'])?->format('Y-m-d')
+                                ?? \DateTime::createFromFormat('d-m-Y', $ocrResult['date'])?->format('Y-m-d');
+                        }
+
                         if ($parsed['amount'] !== null) {
                             $account = $this->findAccount($telegramUser);
                             if ($account) {
@@ -685,7 +691,7 @@ class ProcessMessageAction
             'amount' => $parsed['amount'],
             'currency' => $account->currency,
             'description' => $parsed['description'],
-            'transaction_date' => now()->toDateString(),
+            'transaction_date' => $parsed['date'] ?? now()->toDateString(),
             'source' => 'telegram',
         ];
 

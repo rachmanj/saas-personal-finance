@@ -44,6 +44,7 @@ class ParseTransactionTextAction
             'description' => $description,
             'type' => $type,
             'category_suggestion' => $categorySuggestion,
+            'date' => $this->extractDate($text),
             'error' => null,
         ];
     }
@@ -141,6 +142,33 @@ class ParseTransactionTextAction
             if (preg_match("/{$pattern}/i", $lower)) {
                 return $category;
             }
+        }
+
+        return null;
+    }
+
+    /**
+     * Extract a date from text if present.
+     * Supports: "09-08-26", "9 Agustus 2026", "09/08", etc.
+     */
+    private function extractDate(string $text): ?string
+    {
+        // DD-MM-YY or DD-MM-YYYY
+        if (preg_match('/(\d{1,2}[-\/]\d{1,2}[-\/]\d{2,4})/', $text, $m)) {
+            $d = \DateTime::createFromFormat('d-m-y', str_replace('/', '-', $m[1]));
+            if (! $d) $d = \DateTime::createFromFormat('d-m-Y', str_replace('/', '-', $m[1]));
+            if ($d) return $d->format('Y-m-d');
+        }
+
+        // "9 Agustus 2026" or "9 Agustus"
+        $idMonths = ['januari','februari','maret','april','mei','juni','juli','agustus','september','oktober','november','desember'];
+        $pattern = '/(\d{1,2})\s*(' . implode('|', $idMonths) . ')(?:\s*(\d{4}))?/i';
+        if (preg_match($pattern, $text, $m)) {
+            $day = (int) $m[1];
+            $monthName = strtolower($m[2]);
+            $month = array_search($monthName, $idMonths) + 1;
+            $year = !empty($m[3]) ? (int) $m[3] : (int) date('Y');
+            return sprintf('%04d-%02d-%02d', $year, $month, $day);
         }
 
         return null;
