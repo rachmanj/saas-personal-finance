@@ -41,6 +41,7 @@ export default function Index() {
     };
 
     const columns = [
+        { title: 'ID', dataIndex: 'id', key: 'id', width: 50 },
         { title: 'Tanggal', dataIndex: 'transaction_date', key: 'date', width: 100,
             render: (v) => dayjs(v).format('DD/MM/YY') },
         { title: 'Deskripsi', dataIndex: 'description', key: 'desc', ellipsis: true },
