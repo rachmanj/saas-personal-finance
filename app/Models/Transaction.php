@@ -28,6 +28,7 @@ class Transaction extends Model
         'base_currency',
         'exchange_rate',
         'description',
+        'toko',
         'notes',
         'transaction_date',
         'receipt_path',
