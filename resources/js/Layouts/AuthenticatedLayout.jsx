@@ -1,5 +1,5 @@
-import { Link, usePage } from '@inertiajs/react';
-import { Layout, Menu } from 'antd';
+import { Link, usePage, router } from '@inertiajs/react';
+import { Layout, Menu, Dropdown, Button, Space } from 'antd';
 import {
     DashboardOutlined,
     WalletOutlined,
@@ -12,6 +12,8 @@ import {
     DownloadOutlined,
     SettingOutlined,
     SendOutlined,
+    UserOutlined,
+    LogoutOutlined,
 } from '@ant-design/icons';
 
 const { Header, Sider, Content } = Layout;
@@ -30,13 +32,21 @@ const menuItems = [
     { key: '/settings/telegram', icon: <SendOutlined />, label: <Link href="/settings/telegram">Telegram</Link> },
 ];
 
-/**
- * @param {{ children: import('react').ReactNode, title?: string }} props
- */
 export default function AuthenticatedLayout({ children, title }) {
-    const { url } = usePage();
+    const { url, props } = usePage();
+    const user = props.auth?.user;
 
     const selectedKey = menuItems.find((item) => url.startsWith(item.key))?.key || '/dashboard';
+
+    const handleLogout = () => {
+        router.post('/logout');
+    };
+
+    const userMenuItems = [
+        { key: 'email', label: user?.email || 'User', disabled: true },
+        { type: 'divider' },
+        { key: 'logout', icon: <LogoutOutlined />, label: 'Sign Out', onClick: handleLogout },
+    ];
 
     return (
         <Layout style={{ minHeight: '100vh' }}>
@@ -47,8 +57,16 @@ export default function AuthenticatedLayout({ children, title }) {
                 <Menu theme="dark" mode="inline" selectedKeys={[selectedKey]} items={menuItems} />
             </Sider>
             <Layout>
-                <Header style={{ padding: '0 24px', display: 'flex', alignItems: 'center' }}>
+                <Header style={{ padding: '0 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                     <h2 style={{ margin: 0, color: 'inherit' }}>{title}</h2>
+                    <Dropdown menu={{ items: userMenuItems }} placement="bottomRight">
+                        <Button type="text" style={{ color: '#fff' }}>
+                            <Space>
+                                <UserOutlined />
+                                {user?.name || 'User'}
+                            </Space>
+                        </Button>
+                    </Dropdown>
                 </Header>
                 <Content
                     id="main-content"
