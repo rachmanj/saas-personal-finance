@@ -14,7 +14,7 @@ export default function Login({ status }) {
     };
 
     return (
-        <GuestLayout title="Login">
+        <GuestLayout title="Masuk">
             {status && (
                 <Alert
                     message={status}
@@ -39,7 +39,7 @@ export default function Login({ status }) {
                 </Form.Item>
 
                 <Form.Item
-                    label="Password"
+                    label="Kata Sandi"
                     validateStatus={errors.password ? 'error' : ''}
                     help={errors.password}
                 >
@@ -55,18 +55,18 @@ export default function Login({ status }) {
                         checked={data.remember}
                         onChange={(e) => setData('remember', e.target.checked)}
                     >
-                        Remember me
+                        Ingat saya
                     </Checkbox>
                 </Form.Item>
 
                 <Form.Item>
                     <Button type="primary" htmlType="submit" loading={processing} block>
-                        Log in
+                        Masuk
                     </Button>
                 </Form.Item>
 
                 <div style={{ textAlign: 'center' }}>
-                    <Link href="/forgot-password">Forgot your password?</Link>
+                    <Link href="/forgot-password">Lupa kata sandi?</Link>
                 </div>
             </Form>
         </GuestLayout>

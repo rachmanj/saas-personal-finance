@@ -16,7 +16,7 @@ import BudgetProgressBar from './BudgetProgressBar';
 export default function BudgetList({ budgets: budgetsProp, onEdit, onDelete, onAdd, refreshKey = 0 }) {
     const { message } = App.useApp();
     const [budgets, setBudgets] = useState(budgetsProp || []);
-    const [loading, setLoading] = useState(true);
+    const [loading, setLoading] = useState(!budgetsProp);
     const [error, setError] = useState(null);
 
     const loadBudgets = async () => {
@@ -26,30 +26,35 @@ export default function BudgetList({ budgets: budgetsProp, onEdit, onDelete, onA
             const res = await apiGet('/api/budgets');
             setBudgets(res.data || []);
         } catch (err) {
-            setError(err.message || 'Failed to load budgets');
-            message.error('Failed to load budgets');
+            setError(err.message || 'Gagal memuat anggaran');
+            message.error('Gagal memuat anggaran');
         } finally {
             setLoading(false);
         }
     };
 
     useEffect(() => {
-        loadBudgets();
+        if (budgetsProp) {
+            setBudgets(budgetsProp);
+            setLoading(false);
+        } else {
+            loadBudgets();
+        }
     }, [refreshKey]);
 
     const handleDelete = (record) => {
         Modal.confirm({
-            title: 'Delete budget?',
+            title: 'Hapus anggaran?',
             content: `Are you sure you want to delete the budget for "${record.category?.name || 'Unknown'}"?`,
             okType: 'danger',
             onOk: async () => {
                 try {
                     await apiDelete(`/api/budgets/${record.id}`);
-                    message.success('Budget deleted');
+                    message.success('Anggaran dihapus');
                     onDelete?.(record);
                     loadBudgets();
                 } catch (err) {
-                    message.error(err.message || 'Failed to delete budget');
+                    message.error(err.message || 'Gagal menghapus anggaran');
                 }
             },
         });
@@ -57,24 +62,24 @@ export default function BudgetList({ budgets: budgetsProp, onEdit, onDelete, onA
 
     const columns = [
         {
-            title: 'Category',
+            title: 'Kategori',
             dataIndex: ['category', 'name'],
             key: 'category',
             render: (_, record) => record.category?.name || '—',
         },
         {
-            title: 'Amount',
+            title: 'Jumlah',
             key: 'amount',
             render: (_, record) => `${record.currency} ${Number(record.amount).toFixed(2)}`,
         },
         {
-            title: 'Period',
+            title: 'Periode',
             dataIndex: 'period',
             key: 'period',
             render: (period) => period?.charAt(0).toUpperCase() + period?.slice(1),
         },
         {
-            title: 'Utilization',
+            title: 'Pemakaian',
             key: 'utilization',
             render: (_, record) => (
                 <BudgetProgressBar
@@ -84,7 +89,7 @@ export default function BudgetList({ budgets: budgetsProp, onEdit, onDelete, onA
             ),
         },
         {
-            title: 'Actions',
+            title: 'Aksi',
             key: 'actions',
             render: (_, record) => (
                 <Space>
@@ -102,10 +107,10 @@ export default function BudgetList({ budgets: budgetsProp, onEdit, onDelete, onA
             rowKey="id"
             loading={loading}
             pagination={{ pageSize: 10 }}
-            locale={{ emptyText: error || 'No budgets yet' }}
+            locale={{ emptyText: error || 'Belum ada anggaran' }}
             title={onAdd ? () => (
                 <Button type="primary" icon={<PlusOutlined />} onClick={onAdd}>
-                    Add Budget
+                    Tambah Anggaran
                 </Button>
             ) : undefined}
         />

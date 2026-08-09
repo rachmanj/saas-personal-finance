@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Head, Link } from '@inertiajs/react';
+import { Head, Link, usePage } from '@inertiajs/react';
 import { Table, Button, Tag, Space, Modal, Descriptions, Typography, App } from 'antd';
 import { PlusOutlined, DeleteOutlined, EyeOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
@@ -22,9 +22,14 @@ const FILE_TYPE_LABELS = {
 
 export default function Index() {
     const { message } = App.useApp();
-    const [imports, setImports] = useState([]);
-    const [loading, setLoading] = useState(true);
-    const [pagination, setPagination] = useState({ current: 1, pageSize: 20, total: 0 });
+    const { props: pageProps } = usePage();
+    const [imports, setImports] = useState(pageProps.imports || []);
+    const [loading, setLoading] = useState(!pageProps.imports);
+    const [pagination, setPagination] = useState({
+        current: pageProps.meta?.current_page || 1,
+        pageSize: pageProps.meta?.per_page || 20,
+        total: pageProps.meta?.total || 0,
+    });
     const [detailRecord, setDetailRecord] = useState(null);
 
     const loadImports = useCallback(async (page = 1, pageSize = 20) => {
@@ -45,7 +50,7 @@ export default function Index() {
     }, [message]);
 
     useEffect(() => {
-        loadImports();
+        if (!pageProps.imports) loadImports();
     }, [loadImports]);
 
     const handleTableChange = (pag) => {

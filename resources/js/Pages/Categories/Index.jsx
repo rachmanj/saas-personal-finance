@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { Head, Link } from '@inertiajs/react';
+import { useEffect, useState, useCallback } from 'react';
+import { Head, Link, usePage } from '@inertiajs/react';
 import { App, Button } from 'antd';
 import { PlusOutlined } from '@ant-design/icons';
 import AuthenticatedLayout from '../../Layouts/AuthenticatedLayout';
@@ -7,10 +7,11 @@ import CategoryTree from '../../Components/CategoryTree';
 import { apiGet } from '../../utils/api';
 
 export default function Index() {
-    const [categories, setCategories] = useState([]);
-    const [loading, setLoading] = useState(true);
+    const { props } = usePage();
+    const [categories, setCategories] = useState(props.categories || []);
+    const [loading, setLoading] = useState(false);
 
-    const loadCategories = async () => {
+    const loadCategories = useCallback(async () => {
         setLoading(true);
         try {
             const response = await apiGet('/api/categories');
@@ -20,20 +21,16 @@ export default function Index() {
         } finally {
             setLoading(false);
         }
-    };
-
-    useEffect(() => {
-        loadCategories();
     }, []);
 
     return (
         <App>
-            <AuthenticatedLayout title="Categories">
-                <Head title="Categories" />
+            <AuthenticatedLayout title="Kategori">
+                <Head title="Kategori" />
                 <div style={{ marginBottom: 16 }}>
                     <Link href="/categories/create">
                         <Button type="primary" icon={<PlusOutlined />}>
-                            Create Category
+                            Buat Kategori
                         </Button>
                     </Link>
                 </div>

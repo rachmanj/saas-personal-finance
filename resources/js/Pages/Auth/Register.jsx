@@ -15,10 +15,10 @@ export default function Register() {
     };
 
     return (
-        <GuestLayout title="Register">
+        <GuestLayout title="Daftar">
             <Form layout="vertical" onFinish={submit}>
                 <Form.Item
-                    label="Name"
+                    label="Nama"
                     validateStatus={errors.name ? 'error' : ''}
                     help={errors.name}
                 >
@@ -43,7 +43,7 @@ export default function Register() {
                 </Form.Item>
 
                 <Form.Item
-                    label="Password"
+                    label="Kata Sandi"
                     validateStatus={errors.password ? 'error' : ''}
                     help={errors.password}
                 >
@@ -55,7 +55,7 @@ export default function Register() {
                 </Form.Item>
 
                 <Form.Item
-                    label="Confirm Password"
+                    label="Konfirmasi Kata Sandi"
                     validateStatus={errors.password_confirmation ? 'error' : ''}
                     help={errors.password_confirmation}
                 >
@@ -70,12 +70,12 @@ export default function Register() {
 
                 <Form.Item>
                     <Button type="primary" htmlType="submit" loading={processing} block>
-                        Register
+                        Daftar
                     </Button>
                 </Form.Item>
 
                 <div style={{ textAlign: 'center' }}>
-                    <Link href="/login">Already registered?</Link>
+                    <Link href="/login">Sudah punya akun?</Link>
                 </div>
             </Form>
         </GuestLayout>

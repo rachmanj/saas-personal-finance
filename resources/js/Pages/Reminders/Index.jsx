@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect } from 'react';
-import { Head } from '@inertiajs/react';
+import { Head, usePage } from '@inertiajs/react';
 import { App, Row, Col, Card, List, Tag } from 'antd';
 import AuthenticatedLayout from '../../Layouts/AuthenticatedLayout';
 import ReminderList from '../../Components/Reminders/ReminderList';
@@ -10,10 +10,11 @@ import { apiGet } from '../../utils/api';
 import dayjs from 'dayjs';
 
 export default function Index() {
+    const { props: pageProps } = usePage();
     const [modalOpen, setModalOpen] = useState(false);
     const [selectedReminder, setSelectedReminder] = useState(null);
     const [refreshKey, setRefreshKey] = useState(0);
-    const [dueSoon, setDueSoon] = useState([]);
+    const [dueSoon, setDueSoon] = useState(pageProps.dueSoon || []);
 
     const loadDueSoon = useCallback(async () => {
         try {
@@ -25,8 +26,8 @@ export default function Index() {
     }, []);
 
     useEffect(() => {
-        loadDueSoon();
-    }, [refreshKey, loadDueSoon]);
+        if (!pageProps.dueSoon) loadDueSoon();
+    }, [refreshKey]);
 
     const handleAdd = useCallback(() => {
         setSelectedReminder(null);
@@ -46,8 +47,8 @@ export default function Index() {
 
     return (
         <App>
-            <AuthenticatedLayout title="Bill Reminders">
-                <Head title="Bill Reminders" />
+            <AuthenticatedLayout title="Pengingat Tagihan">
+                <Head title="Pengingat Tagihan" />
                 <OfflineIndicator />
 
                 <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
@@ -59,16 +60,17 @@ export default function Index() {
                 <Row gutter={[16, 16]}>
                     <Col xs={24} lg={16}>
                         <ReminderList
+                            reminders={pageProps.reminders}
                             refreshKey={refreshKey}
                             onEdit={handleEdit}
                             onAdd={handleAdd}
                         />
                     </Col>
                     <Col xs={24} lg={8}>
-                        <Card title="Due Soon (7 days)">
+                        <Card title="Jatuh Tempo (7 hari)">
                             <List
                                 dataSource={dueSoon}
-                                locale={{ emptyText: 'No bills due soon' }}
+                                locale={{ emptyText: 'Tidak ada tagihan jatuh tempo' }}
                                 renderItem={(item) => (
                                     <List.Item>
                                         <List.Item.Meta

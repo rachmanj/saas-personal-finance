@@ -11,13 +11,18 @@ const TYPE_COLORS = {
     transfer: 'blue',
 };
 
-export default function UpcomingPreview() {
+export default function UpcomingPreview({ upcoming }) {
     const { message } = App.useApp();
-    const [items, setItems] = useState([]);
-    const [loading, setLoading] = useState(true);
+    const [items, setItems] = useState(upcoming || []);
+    const [loading, setLoading] = useState(!upcoming);
     const [error, setError] = useState(null);
 
     useEffect(() => {
+        if (upcoming) {
+            setItems(upcoming);
+            setLoading(false);
+            return;
+        }
         setLoading(true);
         apiGet('/api/recurring-transactions/upcoming')
             .then((res) => {
@@ -25,11 +30,11 @@ export default function UpcomingPreview() {
                 setError(null);
             })
             .catch((err) => {
-                setError(err.message || 'Failed to load upcoming transactions');
-                message.error('Failed to load upcoming transactions');
+                setError(err.message || 'Gagal memuat transaksi mendatang');
+                message.error('Gagal memuat transaksi mendatang');
             })
             .finally(() => setLoading(false));
-    }, [message]);
+    }, [message, upcoming]);
 
     const grouped = useMemo(() => {
         const groups = {};
@@ -52,7 +57,7 @@ export default function UpcomingPreview() {
     }
 
     if (items.length === 0) {
-        return <Empty description="No upcoming recurring transactions" image={Empty.PRESENTED_IMAGE_SIMPLE} />;
+        return <Empty description="Tidak ada transaksi berulang mendatang" image={Empty.PRESENTED_IMAGE_SIMPLE} />;
     }
 
     return (
@@ -63,7 +68,7 @@ export default function UpcomingPreview() {
                 children: dayItems.map((item) => (
                     <div key={item.id} style={{ marginBottom: 8 }}>
                         <Tag color={TYPE_COLORS[item.type] || 'default'}>{item.type}</Tag>
-                        <Text>{item.description || 'No description'}</Text>
+                        <Text>{item.description || 'Tanpa deskripsi'}</Text>
                         {' '}
                         <Text type={item.type === 'income' ? 'success' : item.type === 'expense' ? 'danger' : 'secondary'} strong>
                             {item.currency} {Number(item.amount).toFixed(2)}

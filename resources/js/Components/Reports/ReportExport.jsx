@@ -55,7 +55,7 @@ export default function ReportExport() {
 
     const handleGoogleSheets = async () => {
         if (!spreadsheetId.trim()) {
-            message.error('Please enter a spreadsheet ID');
+            message.error('Masukkan ID spreadsheet');
             return;
         }
 
@@ -78,25 +78,25 @@ export default function ReportExport() {
         {
             key: 'pdf',
             icon: <FilePdfOutlined />,
-            label: 'Export as PDF',
+            label: 'Ekspor PDF',
             onClick: handlePdf,
         },
         {
             key: 'csv',
             icon: <FileExcelOutlined />,
-            label: 'Export as CSV',
+            label: 'Ekspor CSV',
             onClick: handleCsv,
         },
         {
             key: 'ofx',
             icon: <FileTextOutlined />,
-            label: 'Export as OFX',
+            label: 'Ekspor OFX',
             onClick: handleOfx,
         },
         {
             key: 'sheets',
             icon: <GoogleOutlined />,
-            label: 'Sync to Google Sheets',
+            label: 'Sinkronkan ke Google Sheets',
             onClick: () => setSheetsModalOpen(true),
         },
     ];
@@ -110,15 +110,15 @@ export default function ReportExport() {
             </Dropdown>
 
             <Modal
-                title="Sync to Google Sheets"
+                title="Sinkronkan ke Google Sheets"
                 open={sheetsModalOpen}
                 onCancel={() => setSheetsModalOpen(false)}
                 onOk={handleGoogleSheets}
                 confirmLoading={loading === 'sheets'}
-                okText="Sync"
+                okText="Sinkronkan"
             >
                 <Input
-                    placeholder="Spreadsheet ID"
+                    placeholder="ID Spreadsheet"
                     value={spreadsheetId}
                     onChange={(e) => setSpreadsheetId(e.target.value)}
                 />

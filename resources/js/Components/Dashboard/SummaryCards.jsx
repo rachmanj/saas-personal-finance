@@ -1,7 +1,7 @@
 import { Card, Col, Row, Statistic } from 'antd';
 import { ArrowDownOutlined, ArrowUpOutlined, BankOutlined, DollarOutlined } from '@ant-design/icons';
 
-export default function SummaryCards({ incomeTotal = 0, expenseTotal = 0, netWorth = 0 }) {
+export default function SummaryCards({ incomeTotal = 0, expenseTotal = 0, netWorth = 0, currency = 'IDR' }) {
     const balance = incomeTotal - expenseTotal;
 
     return (
@@ -9,11 +9,11 @@ export default function SummaryCards({ incomeTotal = 0, expenseTotal = 0, netWor
             <Col xs={24} sm={12} lg={6}>
                 <Card>
                     <Statistic
-                        title="Income"
+                        title="Pemasukan"
                         value={incomeTotal}
-                        precision={2}
+                        precision={0}
                         prefix={<ArrowUpOutlined />}
-                        suffix="USD"
+                        suffix={currency}
                         valueStyle={{ color: '#52c41a' }}
                     />
                 </Card>
@@ -21,11 +21,11 @@ export default function SummaryCards({ incomeTotal = 0, expenseTotal = 0, netWor
             <Col xs={24} sm={12} lg={6}>
                 <Card>
                     <Statistic
-                        title="Expense"
+                        title="Pengeluaran"
                         value={expenseTotal}
-                        precision={2}
+                        precision={0}
                         prefix={<ArrowDownOutlined />}
-                        suffix="USD"
+                        suffix={currency}
                         valueStyle={{ color: '#ff4d4f' }}
                     />
                 </Card>
@@ -33,11 +33,11 @@ export default function SummaryCards({ incomeTotal = 0, expenseTotal = 0, netWor
             <Col xs={24} sm={12} lg={6}>
                 <Card>
                     <Statistic
-                        title="Balance"
+                        title="Saldo"
                         value={balance}
-                        precision={2}
+                        precision={0}
                         prefix={<DollarOutlined />}
-                        suffix="USD"
+                        suffix={currency}
                         valueStyle={{ color: balance >= 0 ? '#faad14' : '#ff4d4f' }}
                     />
                 </Card>
@@ -45,11 +45,11 @@ export default function SummaryCards({ incomeTotal = 0, expenseTotal = 0, netWor
             <Col xs={24} sm={12} lg={6}>
                 <Card>
                     <Statistic
-                        title="Net Worth"
+                        title="Kekayaan Bersih"
                         value={netWorth}
-                        precision={2}
+                        precision={0}
                         prefix={<BankOutlined />}
-                        suffix="USD"
+                        suffix={currency}
                         valueStyle={{ color: '#1677ff' }}
                     />
                 </Card>

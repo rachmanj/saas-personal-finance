@@ -38,7 +38,7 @@ export default function RecurringList({
 }) {
     const { message } = App.useApp();
     const [recurring, setRecurring] = useState(recurringProp || []);
-    const [loading, setLoading] = useState(true);
+    const [loading, setLoading] = useState(!recurringProp);
     const [error, setError] = useState(null);
     const [actionLoading, setActionLoading] = useState(null);
 
@@ -49,30 +49,35 @@ export default function RecurringList({
             const res = await apiGet('/api/recurring-transactions');
             setRecurring(res.data || []);
         } catch (err) {
-            setError(err.message || 'Failed to load recurring transactions');
-            message.error('Failed to load recurring transactions');
+            setError(err.message || 'Gagal memuat transaksi berulang');
+            message.error('Gagal memuat transaksi berulang');
         } finally {
             setLoading(false);
         }
     };
 
     useEffect(() => {
-        loadRecurring();
+        if (recurringProp) {
+            setRecurring(recurringProp);
+            setLoading(false);
+        } else {
+            loadRecurring();
+        }
     }, [refreshKey]);
 
     const handleDelete = (record) => {
         Modal.confirm({
-            title: 'Delete recurring transaction?',
+            title: 'Hapus transaksi berulang?',
             content: `Are you sure you want to delete "${record.description || 'this item'}"?`,
             okType: 'danger',
             onOk: async () => {
                 try {
                     await apiDelete(`/api/recurring-transactions/${record.id}`);
-                    message.success('Recurring transaction deleted');
+                    message.success('Transaksi berulang dihapus');
                     onDelete?.(record);
                     loadRecurring();
                 } catch (err) {
-                    message.error(err.message || 'Failed to delete');
+                    message.error(err.message || 'Gagal menghapus');
                 }
             },
         });
@@ -82,11 +87,11 @@ export default function RecurringList({
         setActionLoading(`skip-${record.id}`);
         try {
             await apiPost(`/api/recurring-transactions/${record.id}/skip`, {});
-            message.success('Skipped to next due date');
+            message.success('Dilewati ke tanggal berikutnya');
             onSkip?.(record);
             loadRecurring();
         } catch (err) {
-            message.error(err.message || 'Failed to skip');
+            message.error(err.message || 'Gagal melewati');
         } finally {
             setActionLoading(null);
         }
@@ -96,11 +101,11 @@ export default function RecurringList({
         setActionLoading(`post-${record.id}`);
         try {
             await apiPost(`/api/recurring-transactions/${record.id}/post-now`, {});
-            message.success('Transaction posted');
+            message.success('Transaksi diposting');
             onPostNow?.(record);
             loadRecurring();
         } catch (err) {
-            message.error(err.message || 'Failed to post transaction');
+            message.error(err.message || 'Gagal memposting transaksi');
         } finally {
             setActionLoading(null);
         }
@@ -108,24 +113,24 @@ export default function RecurringList({
 
     const columns = [
         {
-            title: 'Description',
+            title: 'Deskripsi',
             dataIndex: 'description',
             key: 'description',
             render: (text) => text || '—',
         },
         {
-            title: 'Type',
+            title: 'Tipe',
             dataIndex: 'type',
             key: 'type',
             render: (type) => <Tag color={TYPE_COLORS[type] || 'default'}>{type}</Tag>,
         },
         {
-            title: 'Amount',
+            title: 'Jumlah',
             key: 'amount',
             render: (_, record) => `${record.currency} ${Number(record.amount).toFixed(2)}`,
         },
         {
-            title: 'Frequency',
+            title: 'Frekuensi',
             dataIndex: 'frequency',
             key: 'frequency',
             render: (freq, record) => (
@@ -136,13 +141,13 @@ export default function RecurringList({
             ),
         },
         {
-            title: 'Account',
+            title: 'Akun',
             dataIndex: ['account', 'name'],
             key: 'account',
             render: (_, record) => record.account?.name || '—',
         },
         {
-            title: 'Next Due Date',
+            title: 'Jatuh Tempo Berikutnya',
             dataIndex: 'next_due_date',
             key: 'next_due_date',
             render: (date) => (date ? dayjs(date).format('MMM D, YYYY') : '—'),
@@ -152,11 +157,11 @@ export default function RecurringList({
             dataIndex: 'is_active',
             key: 'is_active',
             render: (active) => (
-                <Tag color={active ? 'green' : 'default'}>{active ? 'Active' : 'Inactive'}</Tag>
+                <Tag color={active ? 'green' : 'default'}>{active ? 'Aktif' : 'Nonaktif'}</Tag>
             ),
         },
         {
-            title: 'Actions',
+            title: 'Aksi',
             key: 'actions',
             render: (_, record) => (
                 <Space wrap>
@@ -176,7 +181,7 @@ export default function RecurringList({
                         onClick={() => handlePostNow(record)}
                         disabled={!record.is_active}
                     >
-                        Post Now
+                        Posting
                     </Button>
                     <Button icon={<EditOutlined />} size="small" onClick={() => onEdit(record)} />
                     <Button icon={<DeleteOutlined />} size="small" danger onClick={() => handleDelete(record)} />
@@ -193,10 +198,10 @@ export default function RecurringList({
             loading={loading}
             pagination={{ pageSize: 10 }}
             scroll={{ x: true }}
-            locale={{ emptyText: error || 'No recurring transactions yet' }}
+            locale={{ emptyText: error || 'Belum ada transaksi berulang' }}
             title={onAdd ? () => (
                 <Button type="primary" icon={<PlusOutlined />} onClick={onAdd}>
-                    Add Recurring
+                    Tambah Berulang
                 </Button>
             ) : undefined}
         />

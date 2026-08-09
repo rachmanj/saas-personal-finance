@@ -14,21 +14,23 @@ import {
     SendOutlined,
     UserOutlined,
     LogoutOutlined,
+    DollarOutlined,
 } from '@ant-design/icons';
 
 const { Header, Sider, Content } = Layout;
 
 const menuItems = [
-    { key: '/dashboard', icon: <DashboardOutlined />, label: <Link href="/dashboard">Dashboard</Link> },
-    { key: '/transactions', icon: <TransactionOutlined />, label: <Link href="/transactions">Transactions</Link> },
-    { key: '/budgets', icon: <PieChartOutlined />, label: <Link href="/budgets">Budgets</Link> },
-    { key: '/recurring-transactions', icon: <SyncOutlined />, label: <Link href="/recurring-transactions">Recurring</Link> },
-    { key: '/reminders', icon: <BellOutlined />, label: <Link href="/reminders">Reminders</Link> },
-    { key: '/reports', icon: <DownloadOutlined />, label: <Link href="/reports">Reports</Link> },
-    { key: '/accounts', icon: <WalletOutlined />, label: <Link href="/accounts">Accounts</Link> },
-    { key: '/categories', icon: <AppstoreOutlined />, label: <Link href="/categories">Categories</Link> },
-    { key: '/tags', icon: <TagsOutlined />, label: <Link href="/tags">Tags</Link> },
-    { key: '/settings', icon: <SettingOutlined />, label: <Link href="/settings/billing">Settings</Link> },
+    { key: '/dashboard', icon: <DashboardOutlined />, label: <Link href="/dashboard">Dasbor</Link> },
+    { key: '/transactions', icon: <TransactionOutlined />, label: <Link href="/transactions">Transaksi</Link> },
+    { key: '/budgets', icon: <PieChartOutlined />, label: <Link href="/budgets">Anggaran</Link> },
+    { key: '/recurring-transactions', icon: <SyncOutlined />, label: <Link href="/recurring-transactions">Berulang</Link> },
+    { key: '/reminders', icon: <BellOutlined />, label: <Link href="/reminders">Pengingat</Link> },
+    { key: '/reports', icon: <DownloadOutlined />, label: <Link href="/reports">Laporan</Link> },
+    { key: '/accounts', icon: <WalletOutlined />, label: <Link href="/accounts">Akun</Link> },
+    { key: '/categories', icon: <AppstoreOutlined />, label: <Link href="/categories">Kategori</Link> },
+    { key: '/tags', icon: <TagsOutlined />, label: <Link href="/tags">Tag</Link> },
+    { key: '/settings', icon: <SettingOutlined />, label: <Link href="/settings/billing">Pengaturan</Link> },
+    { key: '/settings/currency', icon: <DollarOutlined />, label: <Link href="/settings/currency">Mata Uang</Link> },
     { key: '/settings/telegram', icon: <SendOutlined />, label: <Link href="/settings/telegram">Telegram</Link> },
 ];
 
@@ -45,14 +47,14 @@ export default function AuthenticatedLayout({ children, title }) {
     const userMenuItems = [
         { key: 'email', label: user?.email || 'User', disabled: true },
         { type: 'divider' },
-        { key: 'logout', icon: <LogoutOutlined />, label: 'Sign Out', onClick: handleLogout },
+        { key: 'logout', icon: <LogoutOutlined />, label: 'Keluar', onClick: handleLogout },
     ];
 
     return (
         <Layout style={{ minHeight: '100vh' }}>
             <Sider breakpoint="lg" collapsedWidth={0}>
                 <div style={{ padding: '16px', color: '#fff', fontWeight: 600, fontSize: 16 }}>
-                    Finance Tracker
+                    KeuanganKu
                 </div>
                 <Menu theme="dark" mode="inline" selectedKeys={[selectedKey]} items={menuItems} />
             </Sider>

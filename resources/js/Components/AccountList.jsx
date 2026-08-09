@@ -9,11 +9,11 @@ import { Form } from 'antd';
 import { apiPost } from '../utils/api';
 
 /**
- * @param {{ showCreateModal?: boolean, onCreateModalClose?: () => void }} props
+ * @param {{ showCreateModal?: boolean, onCreateModalClose?: () => void, accounts?: object[] }} props
  */
-export default function AccountList({ showCreateModal = false, onCreateModalClose }) {
-    const [accounts, setAccounts] = useState([]);
-    const [loading, setLoading] = useState(true);
+export default function AccountList({ showCreateModal = false, onCreateModalClose, accounts: accountsProp }) {
+    const [accounts, setAccounts] = useState(accountsProp || []);
+    const [loading, setLoading] = useState(!accountsProp);
     const [createOpen, setCreateOpen] = useState(showCreateModal);
     const [createForm] = Form.useForm();
 
@@ -23,14 +23,14 @@ export default function AccountList({ showCreateModal = false, onCreateModalClos
             const response = await apiGet('/api/accounts');
             setAccounts(response.data || []);
         } catch {
-            message.error('Failed to load accounts');
+            message.error('Gagal memuat akun');
         } finally {
             setLoading(false);
         }
     };
 
     useEffect(() => {
-        loadAccounts();
+        if (!accountsProp) loadAccounts();
     }, []);
 
     useEffect(() => {
@@ -39,16 +39,16 @@ export default function AccountList({ showCreateModal = false, onCreateModalClos
 
     const handleDelete = (record) => {
         Modal.confirm({
-            title: 'Delete account?',
-            content: `Are you sure you want to delete "${record.name}"?`,
+            title: 'Hapus akun?',
+            content: `Yakin ingin menghapus "${record.name}"?`,
             okType: 'danger',
             onOk: async () => {
                 try {
                     await apiDelete(`/api/accounts/${record.id}`);
-                    message.success('Account deleted');
+                    message.success('Akun dihapus');
                     loadAccounts();
                 } catch {
-                    message.error('Failed to delete account');
+                    message.error('Gagal menghapus akun');
                 }
             },
         });
@@ -58,36 +58,36 @@ export default function AccountList({ showCreateModal = false, onCreateModalClos
         try {
             const values = await createForm.validateFields();
             await apiPost('/api/accounts', values);
-            message.success('Account created');
+            message.success('Akun dibuat');
             createForm.resetFields();
             setCreateOpen(false);
             onCreateModalClose?.();
             loadAccounts();
         } catch (error) {
             if (error.errors) {
-                message.error('Validation failed');
+                message.error('Validasi gagal');
             }
         }
     };
 
     const columns = [
-        { title: 'Name', dataIndex: 'name', key: 'name' },
-        { title: 'Type', dataIndex: 'type', key: 'type', render: (type) => type?.replace('_', ' ') },
-        { title: 'Currency', dataIndex: 'currency', key: 'currency' },
+        { title: 'Nama', dataIndex: 'name', key: 'name' },
+        { title: 'Tipe', dataIndex: 'type', key: 'type', render: (type) => type?.replace('_', ' ') },
+        { title: 'Mata Uang', dataIndex: 'currency', key: 'currency' },
         {
-            title: 'Balance',
+            title: 'Saldo',
             dataIndex: 'balance',
             key: 'balance',
             render: (balance, record) => `${record.currency} ${Number(balance).toFixed(2)}`,
         },
         {
-            title: 'Active',
+            title: 'Aktif',
             dataIndex: 'is_active',
             key: 'is_active',
-            render: (active) => <Tag color={active ? 'green' : 'default'}>{active ? 'Yes' : 'No'}</Tag>,
+            render: (active) => <Tag color={active ? 'green' : 'default'}>{active ? 'Ya' : 'Tidak'}</Tag>,
         },
         {
-            title: 'Actions',
+            title: 'Aksi',
             key: 'actions',
             render: (_, record) => (
                 <Space>
@@ -112,13 +112,13 @@ export default function AccountList({ showCreateModal = false, onCreateModalClos
                 pagination={{ pageSize: 10 }}
                 toolBarRender={() => [
                     <Button key="create" type="primary" icon={<PlusOutlined />} onClick={() => setCreateOpen(true)}>
-                        Create Account
+                        Buat Akun
                     </Button>,
                 ]}
             />
 
             <Modal
-                title="Create Account"
+                title="Buat Akun"
                 open={createOpen}
                 onOk={handleCreate}
                 onCancel={() => {

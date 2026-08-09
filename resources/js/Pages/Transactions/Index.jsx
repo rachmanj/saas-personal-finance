@@ -123,15 +123,15 @@ function TransactionsContent({
     };
 
     return (
-        <AuthenticatedLayout title="Transactions">
-            <Head title="Transactions" />
+        <AuthenticatedLayout title="Transaksi">
+        <Head title="Transaksi" />
 
             <Space style={{ marginBottom: 16 }} wrap>
                 <Button
                     icon={<RobotOutlined />}
                     loading={batchLoading}
                     onClick={handleBatchCategorize}
-                    aria-label="Batch categorize uncategorized transactions"
+                    aria-label="Kategorikan batch transaksi yang belum dikategorikan"
                 >
                     Batch categorize uncategorized
                 </Button>

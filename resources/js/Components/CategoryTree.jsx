@@ -35,39 +35,39 @@ export default function CategoryTree({ categories, onRefresh }) {
             await apiPut('/api/categories/reorder', {
                 ordered_ids: reordered.map((c) => c.id),
             });
-            message.success('Category reordered');
+            message.success('Kategori diurutkan ulang');
             onRefresh();
         } catch {
-            message.error('Failed to reorder');
+            message.error('Gagal mengurutkan ulang');
         }
     };
 
     const handleDelete = (record) => {
         apiDelete(`/api/categories/${record.id}`)
             .then(() => {
-                message.success('Category deleted');
+                message.success('Kategori dihapus');
                 onRefresh();
             })
-            .catch(() => message.error('Failed to delete category'));
+            message.error('Gagal menghapus kategori');
     };
 
     const columns = [
-        { title: 'Name', dataIndex: 'name', key: 'name' },
+        { title: 'Nama', dataIndex: 'name', key: 'name' },
         {
-            title: 'Type',
+            { title: 'Tipe',
             dataIndex: 'type',
             key: 'type',
             render: (type) => <Tag color={type === 'income' ? 'green' : 'red'}>{type}</Tag>,
         },
         {
-            title: 'System',
+            { title: 'Sistem',
             dataIndex: 'is_system',
             key: 'is_system',
-            render: (val) => (val ? 'Yes' : 'No'),
+            render: (val) => (val ? 'Ya' : 'Tidak'),
         },
-        { title: 'Sort Order', dataIndex: 'sort_order', key: 'sort_order' },
+        { title: 'Urutan', dataIndex: 'sort_order', key: 'sort_order' },
         {
-            title: 'Actions',
+            { title: 'Aksi',
             key: 'actions',
             render: (_, record) => (
                 <Space>

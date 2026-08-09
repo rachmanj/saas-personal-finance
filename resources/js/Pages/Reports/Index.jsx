@@ -7,13 +7,13 @@ import OfflineIndicator from '../../Components/PWA/OfflineIndicator';
 export default function Index() {
     return (
         <App>
-            <AuthenticatedLayout title="Reports & Export">
-                <Head title="Reports & Export" />
+            <AuthenticatedLayout title="Laporan & Ekspor">
+                <Head title="Laporan & Ekspor" />
                 <OfflineIndicator />
 
-                <Card title="Export Transactions">
+                <Card title="Ekspor Transaksi">
                     <p style={{ marginBottom: 16 }}>
-                        Export your transaction data in various formats for reporting, backup, or import into other tools.
+                        Ekspor data transaksi Anda dalam berbagai format untuk pelaporan, cadangan, atau impor ke aplikasi lain.
                     </p>
                     <ReportExport />
                 </Card>

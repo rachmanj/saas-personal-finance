@@ -12,6 +12,7 @@ const { Title } = Typography;
 export default function Dashboard() {
     const { props } = usePage();
     const dashboard = props.dashboard || {};
+    const currency = props.auth?.user?.currency || 'IDR';
 
     const {
         income_total = 0,
@@ -25,23 +26,24 @@ export default function Dashboard() {
 
     return (
         <App>
-            <AuthenticatedLayout title="Dashboard">
-                <Head title="Dashboard" />
+            <AuthenticatedLayout title="Dasbor">
+                <Head title="Dasbor" />
 
                 <SummaryCards
                     incomeTotal={income_total}
                     expenseTotal={expense_total}
                     netWorth={net_worth}
+                    currency={currency}
                 />
 
                 <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
                     <Col xs={24} lg={12}>
-                        <Card title="Recent Transactions">
+                        <Card title="Transaksi Terbaru">
                             <RecentTransactionsWidget transactions={last_10_transactions} />
                         </Card>
                     </Col>
                     <Col xs={24} lg={12}>
-                        <Card title="Upcoming">
+                        <Card title="Mendatang">
                             <UpcomingWidget upcoming={upcoming_recurring} />
                         </Card>
                     </Col>
@@ -49,12 +51,12 @@ export default function Dashboard() {
 
                 <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
                     <Col xs={24} lg={12}>
-                        <Card title="Saving Goals">
+                        <Card title="Target Tabungan">
                             <GoalProgressWidget goals={saving_goals} />
                         </Card>
                     </Col>
                     <Col xs={24} lg={12}>
-                        <Card title="Budget Alerts">
+                        <Card title="Peringatan Anggaran">
                             <BudgetAlertWidget />
                         </Card>
                     </Col>

@@ -32,12 +32,12 @@ export default function BillingSettings({ subscription, plans }) {
     return (
         <div>
             <Paragraph type="secondary">
-                Choose the plan that fits your needs. Upgrade anytime to unlock Pro features.
+                Pilih paket yang sesuai dengan kebutuhan Anda. Upgrade kapan saja untuk membuka fitur Pro.
             </Paragraph>
 
             {subscription.onGracePeriod && subscription.endsAt && (
                 <Tag color="warning" style={{ marginBottom: 16 }}>
-                    Your Pro subscription ends on {new Date(subscription.endsAt).toLocaleDateString()}
+                    Langganan Pro Anda berakhir pada {new Date(subscription.endsAt).toLocaleDateString()}
                 </Tag>
             )}
 
@@ -67,7 +67,7 @@ export default function BillingSettings({ subscription, plans }) {
                             ))}
                         </ul>
                         <Button block disabled={!isPro}>
-                            {isPro ? 'Downgrade via Portal' : 'Current Plan'}
+                            {isPro ? 'Turunkan via Portal' : 'Paket Saat Ini'}
                         </Button>
                     </Card>
                 </Col>
@@ -100,11 +100,11 @@ export default function BillingSettings({ subscription, plans }) {
                         </ul>
                         {isPro ? (
                             <Button type="primary" block onClick={handleManageBilling}>
-                                Manage Subscription
+                                Kelola Langganan
                             </Button>
                         ) : (
                             <Button type="primary" block onClick={handleUpgrade}>
-                                Upgrade to Pro
+                                Upgrade ke Pro
                             </Button>
                         )}
                     </Card>
@@ -114,7 +114,7 @@ export default function BillingSettings({ subscription, plans }) {
             {isPro && subscription.hasStripeCustomer && (
                 <div style={{ marginTop: 24 }}>
                     <Button type="link" onClick={handleManageBilling}>
-                        Open Stripe Customer Portal
+                        Buka Portal Pelanggan Stripe
                     </Button>
                 </div>
             )}

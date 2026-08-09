@@ -5,9 +5,9 @@ import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
 import { apiDelete, apiGet, apiPost, apiPut } from '../utils/api';
 import TagForm from './TagForm';
 
-export default function TagList() {
-    const [tags, setTags] = useState([]);
-    const [loading, setLoading] = useState(true);
+export default function TagList({ tags: tagsProp }) {
+    const [tags, setTags] = useState(tagsProp || []);
+    const [loading, setLoading] = useState(!tagsProp);
     const [modalOpen, setModalOpen] = useState(false);
     const [editingTag, setEditingTag] = useState(null);
     const [form] = Form.useForm();
@@ -18,14 +18,14 @@ export default function TagList() {
             const response = await apiGet('/api/tags');
             setTags(response.data || []);
         } catch {
-            message.error('Failed to load tags');
+            message.error('Gagal memuat tag');
         } finally {
             setLoading(false);
         }
     };
 
     useEffect(() => {
-        loadTags();
+        if (!tagsProp) loadTags();
     }, []);
 
     const openCreate = () => {
@@ -45,32 +45,32 @@ export default function TagList() {
             const values = await form.validateFields();
             if (editingTag) {
                 await apiPut(`/api/tags/${editingTag.id}`, values);
-                message.success('Tag updated');
+                message.success('Tag diperbarui');
             } else {
                 await apiPost('/api/tags', values);
-                message.success('Tag created');
+                message.success('Tag dibuat');
             }
             setModalOpen(false);
             loadTags();
         } catch (error) {
             if (error.errors) {
-                message.error('Validation failed');
+                message.error('Validasi gagal');
             }
         }
     };
 
     const handleDelete = (record) => {
         Modal.confirm({
-            title: 'Delete tag?',
+            title: 'Hapus tag?',
             content: `Are you sure you want to delete "${record.name}"?`,
             okType: 'danger',
             onOk: async () => {
                 try {
                     await apiDelete(`/api/tags/${record.id}`);
-                    message.success('Tag deleted');
+                    message.success('Tag dihapus');
                     loadTags();
                 } catch {
-                    message.error('Failed to delete tag');
+                    message.error('Gagal menghapus tag');
                 }
             },
         });
@@ -78,16 +78,16 @@ export default function TagList() {
 
     const columns = [
         {
-            title: 'Name',
+            title: 'Nama',
             dataIndex: 'name',
             key: 'name',
             render: (name, record) => (
                 <AntTag color={record.color || 'default'}>{name}</AntTag>
             ),
         },
-        { title: 'Color', dataIndex: 'color', key: 'color' },
+        { title: 'Warna', dataIndex: 'color', key: 'color' },
         {
-            title: 'Actions',
+            title: 'Aksi',
             key: 'actions',
             render: (_, record) => (
                 <Space>
@@ -116,7 +116,7 @@ export default function TagList() {
             />
 
             <Modal
-                title={editingTag ? 'Edit Tag' : 'Create Tag'}
+                title={editingTag ? 'Edit Tag' : 'Buat Tag'}
                 open={modalOpen}
                 onOk={handleSave}
                 onCancel={() => setModalOpen(false)}

@@ -14,12 +14,13 @@ import dayjs from 'dayjs';
  *   onEdit: (item: object) => void,
  *   onAdd?: () => void,
  *   refreshKey?: number,
+ *   reminders?: object[],
  * }} props
  */
-export default function ReminderList({ onEdit, onAdd, refreshKey = 0 }) {
+export default function ReminderList({ onEdit, onAdd, refreshKey = 0, reminders: remindersProp }) {
     const { message } = App.useApp();
-    const [reminders, setReminders] = useState([]);
-    const [loading, setLoading] = useState(true);
+    const [reminders, setReminders] = useState(remindersProp || []);
+    const [loading, setLoading] = useState(!remindersProp);
     const [actionLoading, setActionLoading] = useState(null);
 
     const loadReminders = async () => {
@@ -28,28 +29,33 @@ export default function ReminderList({ onEdit, onAdd, refreshKey = 0 }) {
             const res = await apiGet('/api/bill-reminders');
             setReminders(res.data || []);
         } catch (err) {
-            message.error(err.message || 'Failed to load reminders');
+            message.error(err.message || 'Gagal memuat pengingat');
         } finally {
             setLoading(false);
         }
     };
 
     useEffect(() => {
-        loadReminders();
+        if (remindersProp) {
+            setReminders(remindersProp);
+            setLoading(false);
+        } else {
+            loadReminders();
+        }
     }, [refreshKey]);
 
     const handleDelete = (record) => {
         Modal.confirm({
-            title: 'Delete bill reminder?',
+            title: 'Hapus pengingat tagihan?',
             content: `Are you sure you want to delete "${record.name}"?`,
             okType: 'danger',
             onOk: async () => {
                 try {
                     await apiDelete(`/api/bill-reminders/${record.id}`);
-                    message.success('Reminder deleted');
+                    message.success('Pengingat dihapus');
                     loadReminders();
                 } catch (err) {
-                    message.error(err.message || 'Failed to delete');
+                    message.error(err.message || 'Gagal menghapus');
                 }
             },
         });
@@ -63,10 +69,10 @@ export default function ReminderList({ onEdit, onAdd, refreshKey = 0 }) {
         setActionLoading(`paid-${record.id}`);
         try {
             await apiPut(`/api/bill-reminders/${record.id}/paid`, {});
-            message.success('Marked as paid');
+            message.success('Ditandai lunas');
             loadReminders();
         } catch (err) {
-            message.error(err.message || 'Failed to update');
+            message.error(err.message || 'Gagal memperbarui');
         } finally {
             setActionLoading(null);
         }
@@ -74,17 +80,17 @@ export default function ReminderList({ onEdit, onAdd, refreshKey = 0 }) {
 
     const columns = [
         {
-            title: 'Name',
+            title: 'Nama',
             dataIndex: 'name',
             key: 'name',
         },
         {
-            title: 'Amount',
+            title: 'Jumlah',
             key: 'amount',
             render: (_, record) => `${record.currency} ${Number(record.amount).toFixed(2)}`,
         },
         {
-            title: 'Due Date',
+            title: 'Jatuh Tempo',
             dataIndex: 'due_date',
             key: 'due_date',
             render: (date) => (date ? dayjs(date).format('MMM D, YYYY') : '—'),
@@ -94,11 +100,11 @@ export default function ReminderList({ onEdit, onAdd, refreshKey = 0 }) {
             dataIndex: 'is_paid',
             key: 'is_paid',
             render: (paid) => (
-                <Tag color={paid ? 'green' : 'orange'}>{paid ? 'Paid' : 'Unpaid'}</Tag>
+                <Tag color={paid ? 'green' : 'orange'}>{paid ? 'Lunas' : 'Belum Lunas'}</Tag>
             ),
         },
         {
-            title: 'Actions',
+            title: 'Aksi',
             key: 'actions',
             render: (_, record) => (
                 <Space wrap>
@@ -109,7 +115,7 @@ export default function ReminderList({ onEdit, onAdd, refreshKey = 0 }) {
                             loading={actionLoading === `paid-${record.id}`}
                             onClick={() => handleTogglePaid(record)}
                         >
-                            Mark Paid
+                            Tandai Lunas
                         </Button>
                     )}
                     <Button icon={<EditOutlined />} size="small" onClick={() => onEdit(record)} />
@@ -127,10 +133,10 @@ export default function ReminderList({ onEdit, onAdd, refreshKey = 0 }) {
             loading={loading}
             pagination={{ pageSize: 10 }}
             scroll={{ x: true }}
-            locale={{ emptyText: 'No bill reminders yet' }}
+            locale={{ emptyText: 'Belum ada pengingat tagihan' }}
             title={onAdd ? () => (
                 <Button type="primary" icon={<PlusOutlined />} onClick={onAdd}>
-                    Add Reminder
+                    Tambah Pengingat
                 </Button>
             ) : undefined}
         />

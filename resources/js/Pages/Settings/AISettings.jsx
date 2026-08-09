@@ -48,7 +48,7 @@ export default function AISettings() {
             setCategories(categoriesRes.data || []);
             setAccuracy(accuracyRes.data || null);
         } catch (err) {
-            message.error(err.message || 'Failed to load AI settings');
+            message.error(err.message || 'Gagal memuat pengaturan AI');
         } finally {
             setLoading(false);
         }
@@ -82,17 +82,17 @@ export default function AISettings() {
 
             if (editingRule) {
                 await apiPut(`/api/ai/categorization-rules/${editingRule.id}`, values);
-                message.success('Rule updated');
+                message.success('Aturan diperbarui');
             } else {
                 await apiPost('/api/ai/categorization-rules', values);
-                message.success('Rule created');
+                message.success('Aturan dibuat');
             }
 
             setModalOpen(false);
             loadData();
         } catch (err) {
             if (err.errors) {
-                message.error('Please fix validation errors');
+                message.error('Perbaiki error validasi');
             } else if (err.message) {
                 message.error(err.message);
             }
@@ -103,16 +103,16 @@ export default function AISettings() {
 
     const handleDelete = (rule) => {
         Modal.confirm({
-            title: 'Delete categorization rule?',
+            title: 'Hapus aturan kategorisasi?',
             content: `Remove the rule matching "${rule.pattern}"?`,
             okType: 'danger',
             onOk: async () => {
                 try {
                     await apiDelete(`/api/ai/categorization-rules/${rule.id}`);
-                    message.success('Rule deleted');
+                    message.success('Aturan dihapus');
                     loadData();
                 } catch (err) {
-                    message.error(err.message || 'Failed to delete rule');
+                    message.error(err.message || 'Gagal menghapus aturan');
                 }
             },
         });
@@ -120,26 +120,26 @@ export default function AISettings() {
 
     const columns = [
         {
-            title: 'Pattern',
+            title: 'Pola',
             dataIndex: 'pattern',
             key: 'pattern',
             ellipsis: true,
         },
         {
-            title: 'Category',
+            title: 'Kategori',
             dataIndex: ['category', 'name'],
             key: 'category',
             render: (_, record) => record.category?.name || '—',
         },
         {
-            title: 'Confidence',
+            title: 'Keyakinan',
             dataIndex: 'confidence',
             key: 'confidence',
             width: 140,
             render: (value) => <ConfidenceBadge confidence={value} />,
         },
         {
-            title: 'Source',
+            title: 'Sumber',
             dataIndex: 'source',
             key: 'source',
             width: 120,
@@ -150,7 +150,7 @@ export default function AISettings() {
             ),
         },
         {
-            title: 'Actions',
+            title: 'Aksi',
             key: 'actions',
             width: 100,
             render: (_, record) => (
@@ -185,7 +185,7 @@ export default function AISettings() {
                 <Col xs={24} sm={8}>
                     <Card loading={loading}>
                         <Statistic
-                            title="Accuracy Rate"
+                            title="Tingkat Akurasi"
                             value={accuracyPercent}
                             suffix="%"
                             valueStyle={{ color: accuracyPercent >= 80 ? '#52c41a' : accuracyPercent >= 50 ? '#faad14' : '#ff4d4f' }}
@@ -194,12 +194,12 @@ export default function AISettings() {
                 </Col>
                 <Col xs={24} sm={8}>
                     <Card loading={loading}>
-                        <Statistic title="Total Predictions" value={accuracy?.total_predictions ?? 0} />
+                        <Statistic title="Total Prediksi" value={accuracy?.total_predictions ?? 0} />
                     </Card>
                 </Col>
                 <Col xs={24} sm={8}>
                     <Card loading={loading}>
-                        <Statistic title="Correct Predictions" value={accuracy?.correct_predictions ?? 0} />
+                        <Statistic title="Prediksi Benar" value={accuracy?.correct_predictions ?? 0} />
                     </Card>
                 </Col>
             </Row>
@@ -215,7 +215,7 @@ export default function AISettings() {
                 locale={{
                     emptyText: (
                         <EmptyState
-                            description="No categorization rules yet"
+                            description="Belum ada aturan kategorisasi"
                             action={
                                 <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>
                                     Add Rule
@@ -235,7 +235,7 @@ export default function AISettings() {
             />
 
             <Modal
-                title={editingRule ? 'Edit Categorization Rule' : 'New Categorization Rule'}
+                title={editingRule ? 'Edit Aturan Kategorisasi' : 'Aturan Kategorisasi Baru'}
                 open={modalOpen}
                 onOk={handleSave}
                 onCancel={() => setModalOpen(false)}
@@ -245,15 +245,15 @@ export default function AISettings() {
                 <Form form={form} layout="vertical">
                     <Form.Item
                         name="pattern"
-                        label="Pattern"
-                        rules={[{ required: true, message: 'Enter a keyword or pattern' }]}
+                        label="Pola"
+                        rules={[{ required: true, message: 'Masukkan kata kunci atau pola' }]}
                     >
-                        <Input placeholder="e.g. netflix, starbucks" />
+                        <Input placeholder="contoh: netflix, starbucks" />
                     </Form.Item>
                     <Form.Item
                         name="category_id"
-                        label="Category"
-                        rules={[{ required: true, message: 'Select a category' }]}
+                        label="Kategori"
+                        rules={[{ required: true, message: 'Pilih kategori' }]}
                     >
                         <Select
                             showSearch
@@ -261,10 +261,10 @@ export default function AISettings() {
                                 (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
                             }
                             options={categories.map((c) => ({ value: c.id, label: c.name }))}
-                            placeholder="Select category"
+                            placeholder="Pilih kategori"
                         />
                     </Form.Item>
-                    <Form.Item name="confidence" label="Confidence" rules={[{ required: true }]}>
+                    <Form.Item name="confidence" label="Keyakinan" rules={[{ required: true }]}>
                         <InputNumber min={0} max={1} step={0.05} style={{ width: '100%' }} />
                     </Form.Item>
                 </Form>

@@ -94,7 +94,7 @@ export default function TransactionTable({ onEdit, onView, onAdd, selectedRowKey
 
     const columns = [
         {
-            title: 'Date',
+            title: 'Tanggal',
             dataIndex: 'transaction_date',
             key: 'transaction_date',
             width: 120,
@@ -102,14 +102,14 @@ export default function TransactionTable({ onEdit, onView, onAdd, selectedRowKey
             render: (_, record) => dayjs(record.transaction_date).format('MMM D, YYYY'),
         },
         {
-            title: 'Type',
+            title: 'Tipe',
             dataIndex: 'type',
             key: 'type',
             width: 100,
             valueType: 'select',
             valueEnum: {
-                income: { text: 'Income' },
-                expense: { text: 'Expense' },
+                income: { text: 'Pemasukan' },
+                expense: { text: 'Pengeluaran' },
                 transfer: { text: 'Transfer' },
             },
             render: (_, record) => (
@@ -120,13 +120,13 @@ export default function TransactionTable({ onEdit, onView, onAdd, selectedRowKey
             ),
         },
         {
-            title: 'Description',
+            title: 'Deskripsi',
             dataIndex: 'description',
             key: 'description',
             ellipsis: true,
         },
         {
-            title: 'Amount',
+            title: 'Jumlah',
             dataIndex: 'amount',
             key: 'amount',
             width: 150,
@@ -136,14 +136,14 @@ export default function TransactionTable({ onEdit, onView, onAdd, selectedRowKey
                 const sign = record.type === 'income' ? '+' : record.type === 'expense' ? '-' : '';
                 return (
                     <span style={{ color, fontWeight: 600 }}>
-                        {sign}{Number(record.amount).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                        {sign}{Number(record.amount).toLocaleString('id-ID', { minimumFractionDigits: 2 })}
                         {' '}{record.currency}
                     </span>
                 );
             },
         },
         {
-            title: 'Account',
+            title: 'Akun',
             dataIndex: 'account',
             key: 'account',
             width: 150,
@@ -151,7 +151,7 @@ export default function TransactionTable({ onEdit, onView, onAdd, selectedRowKey
             render: (_, record) => record.account?.name || '-',
         },
         {
-            title: 'Category',
+            title: 'Kategori',
             dataIndex: 'category',
             key: 'category',
             width: 150,
@@ -159,7 +159,7 @@ export default function TransactionTable({ onEdit, onView, onAdd, selectedRowKey
             render: (_, record) => record.category?.name || '-',
         },
         {
-            title: 'Tags',
+            title: 'Tag',
             dataIndex: 'tags',
             key: 'tags',
             width: 200,
@@ -175,19 +175,19 @@ export default function TransactionTable({ onEdit, onView, onAdd, selectedRowKey
             },
         },
         {
-            title: 'Actions',
+            title: 'Aksi',
             key: 'actions',
             width: 120,
             fixed: 'right',
             render: (_, record) => (
                 <Space size="small">
-                    <Tooltip title="View">
+                    <Tooltip title="Lihat">
                         <Button type="text" size="small" icon={<EyeOutlined />} onClick={() => onView?.(record)} />
                     </Tooltip>
                     <Tooltip title="Edit">
                         <Button type="text" size="small" icon={<EditOutlined />} onClick={() => onEdit?.(record)} />
                     </Tooltip>
-                    <Tooltip title="Delete">
+                    <Tooltip title="Hapus">
                         <Button type="text" size="small" danger icon={<DeleteOutlined />} onClick={() => handleDelete(record.id)} />
                     </Tooltip>
                 </Space>
@@ -210,10 +210,10 @@ export default function TransactionTable({ onEdit, onView, onAdd, selectedRowKey
                 showSizeChanger: true,
             }}
             dateFormatter="string"
-            headerTitle="Transactions"
+            headerTitle="Transaksi"
             toolBarRender={() => [
                 <Button key="add" type="primary" icon={<PlusOutlined />} onClick={onAdd}>
-                    Add Transaction
+                    Tambah Transaksi
                 </Button>,
             ]}
             rowSelection={

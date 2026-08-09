@@ -36,8 +36,8 @@ function BillingContent({ subscription, plans }) {
     }, [message]);
 
     return (
-        <AuthenticatedLayout title="Settings">
-            <Head title="Billing" />
+        <AuthenticatedLayout title="Pengaturan">
+        <Head title="Penagihan" />
 
             {flash?.error && (
                 <Alert type="error" message={flash.error} showIcon style={{ marginBottom: 16 }} />
@@ -52,12 +52,12 @@ function BillingContent({ subscription, plans }) {
                 items={[
                     {
                         key: 'billing',
-                        label: 'Billing',
+                        label: 'Penagihan',
                         children: <BillingSettings subscription={subscription} plans={plans} />,
                     },
                     {
                         key: 'ai',
-                        label: 'AI Settings',
+                        label: 'Pengaturan AI',
                         children: <AISettings />,
                     },
                     {

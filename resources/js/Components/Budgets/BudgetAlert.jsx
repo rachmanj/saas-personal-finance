@@ -4,8 +4,8 @@ import { apiGet } from '../../utils/api';
 import BudgetProgressBar from './BudgetProgressBar';
 
 const STATUS_CONFIG = {
-    warning: { type: 'warning', color: 'orange', label: 'Warning' },
-    over: { type: 'error', color: 'red', label: 'Over Budget' },
+    warning: { type: 'warning', color: 'orange', label: 'Peringatan' },
+    over: { type: 'error', color: 'red', label: 'Melebihi Anggaran' },
 };
 
 /**
@@ -25,8 +25,8 @@ export default function BudgetAlert() {
                 setError(null);
             })
             .catch((err) => {
-                setError(err.message || 'Failed to load budget alerts');
-                message.error('Failed to load budget alerts');
+                setError(err.message || 'Gagal memuat peringatan anggaran');
+                message.error('Gagal memuat peringatan anggaran');
             })
             .finally(() => setLoading(false));
     }, [message]);
@@ -40,7 +40,7 @@ export default function BudgetAlert() {
     }
 
     if (alerts.length === 0) {
-        return <Empty description="No budget alerts" image={Empty.PRESENTED_IMAGE_SIMPLE} />;
+        return <Empty description="Tidak ada peringatan anggaran" image={Empty.PRESENTED_IMAGE_SIMPLE} />;
     }
 
     return (
@@ -58,7 +58,7 @@ export default function BudgetAlert() {
                             showIcon
                             message={
                                 <span>
-                                    {budget.category?.name || 'Unknown category'}
+                                    {budget.category?.name || 'Kategori tidak diketahui'}
                                     {' '}
                                     <Tag color={config.color}>{config.label}</Tag>
                                 </span>

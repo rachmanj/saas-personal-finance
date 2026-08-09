@@ -83,25 +83,25 @@ export default function TelegramSettings({ telegram }) {
                 title={
                     <Space>
                         <SendOutlined />
-                        <span>Connect Telegram</span>
+                        <span>Hubungkan Telegram</span>
                     </Space>
                 }
                 bordered
             >
                 <Paragraph type="secondary">
-                    Connect your Telegram account to receive notifications and manage
-                    your finances directly from chat.
+                    Hubungkan akun Telegram Anda untuk menerima notifikasi dan mengelola
+                    keuangan Anda langsung dari chat.
                 </Paragraph>
 
                 <Card type="inner" style={{ marginTop: 16, background: 'var(--ant-color-fill-tertiary)' }}>
                     <Space direction="vertical" size="middle" style={{ width: '100%' }}>
-                        <Text strong>How to connect:</Text>
+                        <Text strong>Cara menghubungkan:</Text>
                         <ol style={{ paddingLeft: 20, margin: 0 }}>
-                            <li>Start a chat with our Telegram bot</li>
+                            <li>Mulai chat dengan bot Telegram kami</li>
                             <li>
-                                Send the <Text code>/link</Text> command with your token
+                                Kirim perintah <Text code>/link</Text> dengan token Anda
                             </li>
-                            <li>Your account will be linked automatically</li>
+                            <li>Akun Anda akan terhubung secara otomatis</li>
                         </ol>
                         <Button
                             type="primary"
@@ -127,7 +127,7 @@ export default function TelegramSettings({ telegram }) {
                                 }
                             }}
                         >
-                            Generate Link Token
+                            Buat Token Tautan
                         </Button>
                     </Space>
                 </Card>
@@ -140,9 +140,9 @@ export default function TelegramSettings({ telegram }) {
             title={
                 <Space>
                     <SendOutlined />
-                    <span>Telegram Connection</span>
+                    <span>Koneksi Telegram</span>
                     <Tag color="green" icon={<CheckCircleOutlined />}>
-                        Connected
+                        Terhubung
                     </Tag>
                 </Space>
             }
@@ -152,10 +152,10 @@ export default function TelegramSettings({ telegram }) {
                 <Descriptions.Item label="Username">
                     {telegram.username ? `@${telegram.username}` : '—'}
                 </Descriptions.Item>
-                <Descriptions.Item label="First Name">
+                <Descriptions.Item label="Nama Depan">
                     {telegram.first_name || '—'}
                 </Descriptions.Item>
-                <Descriptions.Item label="Linked Since">
+                <Descriptions.Item label="Terhubung Sejak">
                     {telegram.linked_at
                         ? new Date(telegram.linked_at).toLocaleDateString('id-ID', {
                               year: 'numeric',
@@ -166,24 +166,24 @@ export default function TelegramSettings({ telegram }) {
                 </Descriptions.Item>
                 <Descriptions.Item label="Status">
                     {telegram.is_active ? (
-                        <Tag color="green">Active</Tag>
+                        <Tag color="green">Aktif</Tag>
                     ) : (
-                        <Tag color="default">Inactive</Tag>
+                        <Tag color="default">Nonaktif</Tag>
                     )}
                 </Descriptions.Item>
             </Descriptions>
 
             <Card
                 type="inner"
-                title="Notification Preferences"
+                title="Preferensi Notifikasi"
                 style={{ marginBottom: 16 }}
             >
                 <Space direction="vertical" size="middle" style={{ width: '100%' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <div>
-                            <Text strong>Daily Summary</Text>
+                            <Text strong>Ringkasan Harian</Text>
                             <br />
-                            <Text type="secondary">Receive a daily summary of your finances</Text>
+                            <Text type="secondary">Terima ringkasan harian keuangan Anda</Text>
                         </div>
                         <Switch
                             checked={settings.daily_summary ?? true}
@@ -194,9 +194,9 @@ export default function TelegramSettings({ telegram }) {
 
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <div>
-                            <Text strong>Budget Alerts</Text>
+                            <Text strong>Peringatan Anggaran</Text>
                             <br />
-                            <Text type="secondary">Get notified when approaching budget limits</Text>
+                            <Text type="secondary">Dapatkan notifikasi saat mendekati batas anggaran</Text>
                         </div>
                         <Switch
                             checked={settings.budget_alerts ?? true}
@@ -207,9 +207,9 @@ export default function TelegramSettings({ telegram }) {
 
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <div>
-                            <Text strong>Bill Reminders</Text>
+                            <Text strong>Pengingat Tagihan</Text>
                             <br />
-                            <Text type="secondary">Reminders before bills are due</Text>
+                            <Text type="secondary">Pengingat sebelum tagihan jatuh tempo</Text>
                         </div>
                         <Switch
                             checked={settings.bill_reminders ?? true}
@@ -226,7 +226,7 @@ export default function TelegramSettings({ telegram }) {
                 onClick={handleUnlink}
                 loading={unlinking}
             >
-                Unlink Telegram Account
+                Putuskan Tautan Telegram
             </Button>
         </Card>
     );
