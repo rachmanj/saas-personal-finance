@@ -1,181 +1,59 @@
-import { useState, useCallback, useEffect } from 'react';
-import { Head } from '@inertiajs/react';
-import { App, Button, Space } from 'antd';
-import { RobotOutlined } from '@ant-design/icons';
+import { useState, useCallback, useMemo } from 'react';
+import { Head, usePage } from '@inertiajs/react';
+import { App, Table, Button, Space, Tag, Tooltip } from 'antd';
+import {
+    PlusOutlined,
+    EditOutlined,
+    EyeOutlined,
+    ArrowUpOutlined,
+    ArrowDownOutlined,
+    SwapOutlined,
+} from '@ant-design/icons';
 import AuthenticatedLayout from '../../Layouts/AuthenticatedLayout';
-import TransactionTable from '../../Components/Transactions/TransactionTable';
-import TransactionForm from '../../Components/Transactions/TransactionForm';
-import TransactionDetail from '../../Components/Transactions/TransactionDetail';
-import QuickAddFAB from '../../Components/Transactions/QuickAddFAB';
-import BulkActions from '../../Components/Transactions/BulkActions';
-import { apiGet, apiPost } from '../../utils/api';
+import dayjs from 'dayjs';
+
+const typeColorMap = { income: 'green', expense: 'red', transfer: 'blue' };
 
 export default function Index() {
-    const [formOpen, setFormOpen] = useState(false);
-    const [detailOpen, setDetailOpen] = useState(false);
-    const [editingTransaction, setEditingTransaction] = useState(null);
-    const [viewingTransaction, setViewingTransaction] = useState(null);
-    const [selectedRowKeys, setSelectedRowKeys] = useState([]);
-    const [categories, setCategories] = useState([]);
-    const [refreshKey, setRefreshKey] = useState(0);
-    const [batchLoading, setBatchLoading] = useState(false);
+    const { props } = usePage();
+    const transactions = props.transactions || [];
 
-    useEffect(() => {
-        apiGet('/api/categories').then((res) => {
-            setCategories((res.data || []).map((c) => ({ value: c.id, label: c.name })));
-        }).catch(() => {});
-    }, []);
-
-    const handleAdd = useCallback(() => {
-        setEditingTransaction(null);
-        setFormOpen(true);
-    }, []);
-
-    const handleEdit = useCallback((txn) => {
-        setEditingTransaction(txn);
-        setFormOpen(true);
-    }, []);
-
-    const handleView = useCallback((txn) => {
-        setViewingTransaction(txn);
-        setDetailOpen(true);
-    }, []);
-
-    const handleFormSuccess = useCallback(() => {
-        setFormOpen(false);
-        setEditingTransaction(null);
-        setRefreshKey((k) => k + 1);
-    }, []);
-
-    const handleBulkDone = useCallback(() => {
-        setSelectedRowKeys([]);
-        setRefreshKey((k) => k + 1);
-    }, []);
-
-    const handleTableRefresh = useCallback(() => {
-        setRefreshKey((k) => k + 1);
-    }, []);
+    const columns = [
+        { title: 'Tanggal', dataIndex: 'transaction_date', key: 'date', width: 100,
+            render: (v) => dayjs(v).format('DD/MM/YY') },
+        { title: 'Deskripsi', dataIndex: 'description', key: 'desc', ellipsis: true },
+        { title: 'Tipe', dataIndex: 'type', key: 'type', width: 90,
+            render: (type) => (
+                <Tag color={typeColorMap[type]}>
+                    {type === 'income' ? <ArrowUpOutlined /> : type === 'expense' ? <ArrowDownOutlined /> : <SwapOutlined />}
+                    {' '}{type}
+                </Tag>
+            )},
+        { title: 'Jumlah', dataIndex: 'amount', key: 'amount', width: 140,
+            render: (v, r) => (
+                <span style={{ color: r.type === 'income' ? '#52c41a' : r.type === 'expense' ? '#ff4d4f' : '#1677ff', fontWeight: 600 }}>
+                    {r.type === 'income' ? '+' : r.type === 'expense' ? '-' : ''}Rp {Number(v).toLocaleString('id-ID')}
+                </span>
+            )},
+        { title: 'Kategori', dataIndex: 'category', key: 'category', width: 120,
+            render: (cat) => cat ? <Tag color={cat.color}>{cat.name}</Tag> : <Tag>—</Tag> },
+        { title: 'Rekening', dataIndex: 'account', key: 'account', width: 120,
+            render: (acc) => acc?.name || '—' },
+    ];
 
     return (
         <App>
-            <TransactionsContent
-                formOpen={formOpen}
-                setFormOpen={setFormOpen}
-                detailOpen={detailOpen}
-                setDetailOpen={setDetailOpen}
-                editingTransaction={editingTransaction}
-                setEditingTransaction={setEditingTransaction}
-                viewingTransaction={viewingTransaction}
-                setViewingTransaction={setViewingTransaction}
-                selectedRowKeys={selectedRowKeys}
-                setSelectedRowKeys={setSelectedRowKeys}
-                categories={categories}
-                refreshKey={refreshKey}
-                batchLoading={batchLoading}
-                setBatchLoading={setBatchLoading}
-                handleAdd={handleAdd}
-                handleEdit={handleEdit}
-                handleView={handleView}
-                handleFormSuccess={handleFormSuccess}
-                handleBulkDone={handleBulkDone}
-                handleTableRefresh={handleTableRefresh}
-            />
+            <AuthenticatedLayout title="Transaksi">
+                <Head title="Transaksi" />
+                <Table
+                    dataSource={transactions}
+                    columns={columns}
+                    rowKey="id"
+                    size="small"
+                    pagination={{ pageSize: 25, showSizeChanger: true, showTotal: (t) => `${t} transaksi` }}
+                    scroll={{ x: 700 }}
+                />
+            </AuthenticatedLayout>
         </App>
-    );
-}
-
-function TransactionsContent({
-    formOpen,
-    setFormOpen,
-    detailOpen,
-    setDetailOpen,
-    editingTransaction,
-    setEditingTransaction,
-    viewingTransaction,
-    setViewingTransaction,
-    selectedRowKeys,
-    setSelectedRowKeys,
-    categories,
-    refreshKey,
-    batchLoading,
-    setBatchLoading,
-    handleAdd,
-    handleEdit,
-    handleView,
-    handleFormSuccess,
-    handleBulkDone,
-    handleTableRefresh,
-}) {
-    const { message } = App.useApp();
-
-    const handleBatchCategorize = async () => {
-        setBatchLoading(true);
-        try {
-            const res = await apiPost('/api/ai/categorize/batch', {});
-            const count = res.data?.dispatched ?? 0;
-            message.success(res.message || `Queued ${count} uncategorized transaction${count === 1 ? '' : 's'}`);
-            handleTableRefresh();
-        } catch (err) {
-            message.error(err.message || 'Failed to queue batch categorization');
-        } finally {
-            setBatchLoading(false);
-        }
-    };
-
-    return (
-        <AuthenticatedLayout title="Transaksi">
-        <Head title="Transaksi" />
-
-            <Space style={{ marginBottom: 16 }} wrap>
-                <Button
-                    icon={<RobotOutlined />}
-                    loading={batchLoading}
-                    onClick={handleBatchCategorize}
-                    aria-label="Kategorikan batch transaksi yang belum dikategorikan"
-                >
-                    Batch categorize uncategorized
-                </Button>
-            </Space>
-
-            <BulkActions
-                selectedRowKeys={selectedRowKeys}
-                onDone={handleBulkDone}
-                categories={categories}
-            />
-
-            <TransactionTable
-                key={refreshKey}
-                onEdit={handleEdit}
-                onView={handleView}
-                onAdd={handleAdd}
-                selectedRowKeys={selectedRowKeys}
-                onSelectChange={setSelectedRowKeys}
-            />
-
-            <TransactionForm
-                open={formOpen}
-                onClose={() => {
-                    setFormOpen(false);
-                    setEditingTransaction(null);
-                }}
-                onSuccess={handleFormSuccess}
-                transaction={editingTransaction}
-            />
-
-            <TransactionDetail
-                open={detailOpen}
-                onClose={() => {
-                    setDetailOpen(false);
-                    setViewingTransaction(null);
-                }}
-                transaction={viewingTransaction}
-                onEdit={(txn) => {
-                    setDetailOpen(false);
-                    handleEdit(txn);
-                }}
-            />
-
-            <QuickAddFAB onSuccess={handleTableRefresh} />
-        </AuthenticatedLayout>
     );
 }

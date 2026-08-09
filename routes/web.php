@@ -102,7 +102,16 @@ Route::middleware('auth')->group(function () {
     })->name('recurring-transactions');
 
     Route::get('/transactions', function () {
-        return inertia('Transactions/Index');
+        $user = Auth::user();
+        $txns = \App\Models\Transaction::where('team_id', $user->current_team_id)
+            ->with(['account:id,name', 'category:id,name,color'])
+            ->orderByDesc('transaction_date')
+            ->orderByDesc('id')
+            ->limit(100)
+            ->get();
+        return inertia('Transactions/Index', [
+            'transactions' => $txns,
+        ]);
     })->name('transactions.index');
 
     Route::get('/transactions/{id}', function (string $id) {
