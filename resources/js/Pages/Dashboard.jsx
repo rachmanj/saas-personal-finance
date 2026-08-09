@@ -19,6 +19,8 @@ export default function Dashboard() {
         net_worth = 0,
         last_10_transactions = [],
         saving_goals = [],
+        budgets = [],
+        upcoming_recurring = [],
     } = dashboard;
 
     return (
@@ -40,7 +42,7 @@ export default function Dashboard() {
                     </Col>
                     <Col xs={24} lg={12}>
                         <Card title="Upcoming">
-                            <UpcomingWidget />
+                            <UpcomingWidget upcoming={upcoming_recurring} />
                         </Card>
                     </Col>
                 </Row>
