@@ -135,7 +135,7 @@ Route::middleware('auth')->group(function () {
         ]);
     })->name('reminders');
 
-    Route::get('/reports', fn () => inertia('Reports/Index'))->name('reports');
+    Route::get('/goals', fn () => inertia('Goals/Index'))->name('goals');
 
     Route::get('/settings/billing', [BillingController::class, 'index'])->name('settings.billing');
 
