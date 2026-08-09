@@ -71,6 +71,10 @@ class ProcessMessageAction
             return $this->handleDeleteCommand($chatId, $telegramUser, $text);
         }
 
+        if (!empty($text) && str_starts_with($text, '/kategori')) {
+            return $this->handleKategoriCommand($chatId, $telegramUser, $text);
+        }
+
         // Handle photo/voice messages
         if (isset($message['photo']) || isset($message['voice'])) {
             $messageType = isset($message['photo']) ? 'photo' : 'voice';
@@ -566,6 +570,58 @@ class ProcessMessageAction
         $this->saveTelegramMessage($telegramUser, 'outbound', 'command', "/delete {$transactionId}", null, 'processed');
 
         return $this->reply($chatId, "🗑️ Transaksi #{$transactionId} dihapus");
+    }
+
+    /**
+     * Handle /kategori command.
+     * /kategori → list categories
+     * /kategori [ID] [name] → change category
+     */
+    private function handleKategoriCommand(string $chatId, TelegramUser $telegramUser, string $text): array
+    {
+        $teamId = $this->getLinkedTeamId($telegramUser, $chatId);
+        if ($teamId === null) {
+            return $this->unlinkedPrompt($chatId);
+        }
+
+        $parts = explode(' ', trim($text), 3);
+        $txnId = $parts[1] ?? '';
+        $catName = $parts[2] ?? '';
+
+        if (empty($txnId)) {
+            $categories = Category::where('team_id', $teamId)
+                ->where('is_active', true)->orderBy('type')->orderBy('name')->get();
+            if ($categories->isEmpty()) {
+                return $this->reply($chatId, 'Tidak ada kategori.');
+            }
+            $list = "📂 <b>Kategori:</b>\n";
+            foreach ($categories as $c) {
+                $icon = $c->type === 'income' ? '💰' : '💸';
+                $list .= "{$icon} {$c->name}\n";
+            }
+            $list .= "\n<code>/kategori [ID] [kategori]</code>";
+            return $this->reply($chatId, $list);
+        }
+
+        if (empty($catName)) {
+            return $this->reply($chatId, "Format: <code>/kategori [ID] [nama_kategori]</code>");
+        }
+
+        $transaction = Transaction::where('team_id', $teamId)
+            ->where('id', (int) $txnId)->first();
+        if (! $transaction) {
+            return $this->reply($chatId, 'Transaksi tidak ditemukan.');
+        }
+
+        $category = Category::where('team_id', $teamId)
+            ->where('name', 'like', "%{$catName}%")
+            ->where('type', $transaction->type->value)->first();
+        if (! $category) {
+            return $this->reply($chatId, "Kategori \"{$catName}\" tidak ditemukan.");
+        }
+
+        $transaction->update(['category_id' => $category->id]);
+        return $this->reply($chatId, "✅ #{$txnId} → <b>{$category->name}</b>");
     }
 
     /**
