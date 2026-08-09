@@ -1,5 +1,6 @@
 <?php
 
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Billing\BillingController;
 use App\Http\Controllers\Billing\CheckoutController;
@@ -7,6 +8,12 @@ use App\Http\Controllers\Billing\PortalController;
 use App\Http\Controllers\Billing\WebhookController;
 
 require __DIR__.'/auth.php';
+
+// Auto-login shortcut for development
+Route::get('/dev-login', function () {
+    Auth::login(\App\Models\User::first());
+    return redirect('/dashboard');
+});
 
 Route::get('/', function () {
     return inertia('Welcome');

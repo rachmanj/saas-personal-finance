@@ -33,6 +33,7 @@ class Transaction extends Model
         'receipt_path',
         'is_reconciled',
         'source',
+        'team_id',
     ];
 
     protected $casts = [
