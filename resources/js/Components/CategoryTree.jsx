@@ -53,21 +53,18 @@ export default function CategoryTree({ categories, onRefresh }) {
 
     const columns = [
         { title: 'Nama', dataIndex: 'name', key: 'name' },
-        {
-            { title: 'Tipe',
+        { title: 'Tipe',
             dataIndex: 'type',
             key: 'type',
             render: (type) => <Tag color={type === 'income' ? 'green' : 'red'}>{type}</Tag>,
         },
-        {
-            { title: 'Sistem',
+        { title: 'Sistem',
             dataIndex: 'is_system',
             key: 'is_system',
             render: (val) => (val ? 'Ya' : 'Tidak'),
         },
         { title: 'Urutan', dataIndex: 'sort_order', key: 'sort_order' },
-        {
-            { title: 'Aksi',
+        { title: 'Aksi',
             key: 'actions',
             render: (_, record) => (
                 <Space>
