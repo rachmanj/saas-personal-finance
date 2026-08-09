@@ -147,4 +147,12 @@ Route::middleware(['auth:sanctum'])->group(function () {
         Route::post('/google-sheets', [ExportController::class, 'googleSheets']);
         Route::get('/download/{type}/{filename}', [ExportController::class, 'download']);
     });
+
+    // Telegram settings (authenticated)
+    Route::prefix('telegram')->group(function () {
+        Route::get('/settings', [\App\Http\Controllers\Api\TelegramSettingsController::class, 'show']);
+        Route::put('/settings', [\App\Http\Controllers\Api\TelegramSettingsController::class, 'update']);
+        Route::delete('/unlink', [\App\Http\Controllers\Api\TelegramSettingsController::class, 'unlink']);
+        Route::post('/generate-link-token', [\App\Http\Controllers\Api\TelegramSettingsController::class, 'generateLinkToken']);
+    });
 });

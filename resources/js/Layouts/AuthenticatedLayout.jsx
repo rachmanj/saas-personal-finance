@@ -11,6 +11,7 @@ import {
     BellOutlined,
     DownloadOutlined,
     SettingOutlined,
+    SendOutlined,
 } from '@ant-design/icons';
 
 const { Header, Sider, Content } = Layout;
@@ -26,6 +27,7 @@ const menuItems = [
     { key: '/categories', icon: <AppstoreOutlined />, label: <Link href="/categories">Categories</Link> },
     { key: '/tags', icon: <TagsOutlined />, label: <Link href="/tags">Tags</Link> },
     { key: '/settings', icon: <SettingOutlined />, label: <Link href="/settings/billing">Settings</Link> },
+    { key: '/settings/telegram', icon: <SendOutlined />, label: <Link href="/settings/telegram">Telegram</Link> },
 ];
 
 /**

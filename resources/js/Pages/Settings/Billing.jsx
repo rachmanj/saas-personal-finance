@@ -4,6 +4,7 @@ import { useEffect } from 'react';
 import AuthenticatedLayout from '../../Layouts/AuthenticatedLayout';
 import BillingSettings from '../../Components/Settings/BillingSettings';
 import AISettings from './AISettings';
+import TelegramSettings from '../../Components/Settings/TelegramSettings';
 
 /**
  * @param {{
@@ -20,6 +21,7 @@ import AISettings from './AISettings';
 function BillingContent({ subscription, plans }) {
     const { flash } = usePage().props;
     const { message } = App.useApp();
+    const telegramData = usePage().props.telegram;
 
     useEffect(() => {
         const params = new URLSearchParams(window.location.search);
@@ -57,6 +59,11 @@ function BillingContent({ subscription, plans }) {
                         key: 'ai',
                         label: 'AI Settings',
                         children: <AISettings />,
+                    },
+                    {
+                        key: 'telegram',
+                        label: 'Telegram',
+                        children: <TelegramSettings telegram={telegramData} />,
                     },
                 ]}
             />

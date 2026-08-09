@@ -2,12 +2,17 @@
 
 namespace App\Actions\Telegram;
 
+use App\Actions\Budgets\CalculateBudgetUtilizationAction;
 use App\Actions\Transactions\CreateTransactionAction;
 use App\Models\Account;
+use App\Models\Budget;
+use App\Models\Category;
 use App\Models\TelegramMessage;
 use App\Models\TelegramUser;
+use App\Models\Transaction;
 use App\Services\CategorizationRuleService;
 use App\Services\CurrencyConverterService;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
 
 class ProcessMessageAction
@@ -40,6 +45,26 @@ class ProcessMessageAction
 
         if (!empty($text) && str_starts_with($text, '/help')) {
             return $this->handleHelpCommand($chatId);
+        }
+
+        if (!empty($text) && str_starts_with($text, '/balance')) {
+            return $this->handleBalanceCommand($chatId, $telegramUser);
+        }
+
+        if (!empty($text) && str_starts_with($text, '/today')) {
+            return $this->handleTodayCommand($chatId, $telegramUser);
+        }
+
+        if (!empty($text) && str_starts_with($text, '/month')) {
+            return $this->handleMonthCommand($chatId, $telegramUser);
+        }
+
+        if (!empty($text) && str_starts_with($text, '/budget')) {
+            return $this->handleBudgetCommand($chatId, $telegramUser);
+        }
+
+        if (!empty($text) && str_starts_with($text, '/categories')) {
+            return $this->handleCategoriesCommand($chatId, $telegramUser);
         }
 
         // Handle photo/voice messages
@@ -183,9 +208,277 @@ class ProcessMessageAction
             . "• <code>50000</code> = 50.000\n\n"
             . "<b>Perintah:</b>\n"
             . "/start — Mulai bot\n"
-            . "/help — Tampilkan panduan ini";
+            . "/help — Tampilkan panduan ini\n"
+            . "/balance — Lihat saldo rekening 💰\n"
+            . "/today — Transaksi hari ini 📅\n"
+            . "/month — Ringkasan bulan ini 📊\n"
+            . "/budget — Status anggaran 💳\n"
+            . "/categories — Daftar kategori 📂";
 
         return $this->reply($chatId, $reply);
+    }
+
+    /**
+     * Get the team ID for a linked Telegram user, or return an unlinked prompt.
+     */
+    private function getLinkedTeamId(TelegramUser $telegramUser, string $chatId): ?int
+    {
+        if (!$telegramUser->user_id) {
+            return null;
+        }
+
+        return $telegramUser->user->current_team_id ?? null;
+    }
+
+    /**
+     * Return the unlinked-account prompt response.
+     */
+    private function unlinkedPrompt(string $chatId): array
+    {
+        return $this->reply($chatId,
+            "⚠️ Kamu belum menghubungkan Telegram ke akun Ngopi Dulu Donk.\n\n"
+            . "Silakan buka aplikasi web dan hubungkan Telegram dari menu <b>Pengaturan</b>. 📱"
+        );
+    }
+
+    /**
+     * Handle the /balance command — show all active accounts with balances.
+     */
+    private function handleBalanceCommand(string $chatId, TelegramUser $telegramUser): array
+    {
+        $teamId = $this->getLinkedTeamId($telegramUser, $chatId);
+
+        if ($teamId === null) {
+            return $this->unlinkedPrompt($chatId);
+        }
+
+        $accounts = Account::query()
+            ->where('team_id', $teamId)
+            ->where('is_active', true)
+            ->orderBy('id')
+            ->get();
+
+        if ($accounts->isEmpty()) {
+            return $this->reply($chatId,
+                "💰 <b>Saldo Rekening</b>\n\n"
+                . "Belum ada rekening aktif. Silakan buat rekening dulu di aplikasi web. 🏦"
+            );
+        }
+
+        $lines = ["💰 <b>Saldo Rekening</b>\n"];
+
+        $total = 0;
+        foreach ($accounts as $account) {
+            $balance = (float) $account->balance;
+            $total += $balance;
+            $formatted = number_format($balance, 0, ',', '.');
+            $icon = match ($account->type) {
+                'savings' => '🏦',
+                'credit_card' => '💳',
+                'investment' => '📈',
+                default => '💵',
+            };
+            $lines[] = "{$icon} <b>{$account->name}</b>: Rp {$formatted}";
+        }
+
+        $formattedTotal = number_format($total, 0, ',', '.');
+        $lines[] = "\n💎 <b>Total:</b> Rp {$formattedTotal}";
+
+        return $this->reply($chatId, implode("\n", $lines));
+    }
+
+    /**
+     * Handle the /today command — show today's transactions with totals.
+     */
+    private function handleTodayCommand(string $chatId, TelegramUser $telegramUser): array
+    {
+        $teamId = $this->getLinkedTeamId($telegramUser, $chatId);
+
+        if ($teamId === null) {
+            return $this->unlinkedPrompt($chatId);
+        }
+
+        $today = Carbon::today()->toDateString();
+
+        $transactions = Transaction::query()
+            ->where('team_id', $teamId)
+            ->where('transaction_date', $today)
+            ->orderByDesc('id')
+            ->get();
+
+        if ($transactions->isEmpty()) {
+            return $this->reply($chatId,
+                "📅 <b>Transaksi Hari Ini</b>\n\n"
+                . "Belum ada transaksi hari ini. Yuk catat pengeluaranmu! ✍️"
+            );
+        }
+
+        // Calculate totals
+        $incomeTotal = (float) $transactions->where('type', 'income')->sum('amount');
+        $expenseTotal = (float) $transactions->where('type', 'expense')->sum('amount');
+
+        $lines = ["📅 <b>Transaksi Hari Ini</b> — " . Carbon::today()->format('d M Y') . "\n"];
+
+        foreach ($transactions as $tx) {
+            $emoji = $tx->type->value === 'income' ? '💰' : '💸';
+            $amount = number_format((float) $tx->amount, 0, ',', '.');
+            $lines[] = "{$emoji} {$tx->description} — <b>Rp {$amount}</b>";
+        }
+
+        $lines[] = "\n━━━━━━━━━━━━━━━";
+        $lines[] = "💰 Pemasukan: <b>Rp " . number_format($incomeTotal, 0, ',', '.') . "</b>";
+        $lines[] = "💸 Pengeluaran: <b>Rp " . number_format($expenseTotal, 0, ',', '.') . "</b>";
+
+        $net = $incomeTotal - $expenseTotal;
+        $netEmoji = $net >= 0 ? '🟢' : '🔴';
+        $lines[] = "{$netEmoji} Net: <b>Rp " . number_format($net, 0, ',', '.') . "</b>";
+
+        return $this->reply($chatId, implode("\n", $lines));
+    }
+
+    /**
+     * Handle the /month command — show current month summary.
+     */
+    private function handleMonthCommand(string $chatId, TelegramUser $telegramUser): array
+    {
+        $teamId = $this->getLinkedTeamId($telegramUser, $chatId);
+
+        if ($teamId === null) {
+            return $this->unlinkedPrompt($chatId);
+        }
+
+        $startOfMonth = Carbon::now()->startOfMonth()->toDateString();
+        $endOfMonth = Carbon::now()->endOfMonth()->toDateString();
+        $now = Carbon::now();
+
+        $incomeTotal = (float) Transaction::query()
+            ->where('team_id', $teamId)
+            ->where('type', 'income')
+            ->whereBetween('transaction_date', [$startOfMonth, $endOfMonth])
+            ->sum('amount');
+
+        $expenseTotal = (float) Transaction::query()
+            ->where('team_id', $teamId)
+            ->where('type', 'expense')
+            ->whereBetween('transaction_date', [$startOfMonth, $endOfMonth])
+            ->sum('amount');
+
+        if ($incomeTotal === 0.0 && $expenseTotal === 0.0) {
+            return $this->reply($chatId,
+                "📊 <b>Ringkasan Bulan Ini</b> — " . $now->format('M Y') . "\n\n"
+                . "Belum ada transaksi bulan ini. Saatnya catat keuanganmu! 💪"
+            );
+        }
+
+        $net = $incomeTotal - $expenseTotal;
+        $netEmoji = $net >= 0 ? '🟢' : '🔴';
+
+        $lines = ["📊 <b>Ringkasan Bulan Ini</b> — " . $now->format('M Y') . "\n"];
+        $lines[] = "💰 Pemasukan: <b>Rp " . number_format($incomeTotal, 0, ',', '.') . "</b>";
+        $lines[] = "💸 Pengeluaran: <b>Rp " . number_format($expenseTotal, 0, ',', '.') . "</b>";
+        $lines[] = "{$netEmoji} Net: <b>Rp " . number_format($net, 0, ',', '.') . "</b>";
+
+        return $this->reply($chatId, implode("\n", $lines));
+    }
+
+    /**
+     * Handle the /budget command — show budget utilization for active budgets.
+     */
+    private function handleBudgetCommand(string $chatId, TelegramUser $telegramUser): array
+    {
+        $teamId = $this->getLinkedTeamId($telegramUser, $chatId);
+
+        if ($teamId === null) {
+            return $this->unlinkedPrompt($chatId);
+        }
+
+        $budgets = Budget::query()
+            ->where('team_id', $teamId)
+            ->with('category')
+            ->get();
+
+        if ($budgets->isEmpty()) {
+            return $this->reply($chatId,
+                "💳 <b>Status Anggaran</b>\n\n"
+                . "Belum ada anggaran. Buat anggaran di aplikasi web untuk mulai tracking! 🎯"
+            );
+        }
+
+        $utilizationAction = new CalculateBudgetUtilizationAction;
+
+        $lines = ["💳 <b>Status Anggaran</b>\n"];
+
+        foreach ($budgets as $budget) {
+            $utilization = $utilizationAction->execute($budget);
+            $statusEmoji = match ($utilization['status']) {
+                'over' => '🔴',
+                'warning' => '🟡',
+                default => '🟢',
+            };
+
+            $categoryName = $budget->category?->name ?? 'Tanpa Kategori';
+            $spent = number_format($utilization['spent'], 0, ',', '.');
+            $budgetAmount = number_format((float) $budget->amount, 0, ',', '.');
+            $percent = $utilization['percent'];
+
+            $lines[] = "{$statusEmoji} <b>{$categoryName}</b>";
+            $lines[] = "   Rp {$spent} / Rp {$budgetAmount} ({$percent}%)";
+        }
+
+        return $this->reply($chatId, implode("\n", $lines));
+    }
+
+    /**
+     * Handle the /categories command — list available categories.
+     */
+    private function handleCategoriesCommand(string $chatId, TelegramUser $telegramUser): array
+    {
+        $teamId = $this->getLinkedTeamId($telegramUser, $chatId);
+
+        if ($teamId === null) {
+            return $this->unlinkedPrompt($chatId);
+        }
+
+        $incomeCategories = Category::query()
+            ->where('team_id', $teamId)
+            ->where('type', 'income')
+            ->where('is_active', true)
+            ->orderBy('sort_order')
+            ->get();
+
+        $expenseCategories = Category::query()
+            ->where('team_id', $teamId)
+            ->where('type', 'expense')
+            ->where('is_active', true)
+            ->orderBy('sort_order')
+            ->get();
+
+        if ($incomeCategories->isEmpty() && $expenseCategories->isEmpty()) {
+            return $this->reply($chatId,
+                "📂 <b>Daftar Kategori</b>\n\n"
+                . "Belum ada kategori. Kategori akan dibuat otomatis saat pertama kali kamu buka aplikasi web. 🏷️"
+            );
+        }
+
+        $lines = ["📂 <b>Daftar Kategori</b>\n"];
+
+        if ($incomeCategories->isNotEmpty()) {
+            $lines[] = "<b>💰 Pemasukan:</b>";
+            foreach ($incomeCategories as $cat) {
+                $icon = $cat->icon ? "{$cat->icon} " : '';
+                $lines[] = "  {$icon}{$cat->name}";
+            }
+        }
+
+        if ($expenseCategories->isNotEmpty()) {
+            $lines[] = "\n<b>💸 Pengeluaran:</b>";
+            foreach ($expenseCategories as $cat) {
+                $icon = $cat->icon ? "{$cat->icon} " : '';
+                $lines[] = "  {$icon}{$cat->name}";
+            }
+        }
+
+        return $this->reply($chatId, implode("\n", $lines));
     }
 
     /**
