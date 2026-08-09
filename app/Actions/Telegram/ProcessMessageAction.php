@@ -306,7 +306,18 @@ class ProcessMessageAction
         $this->updateLastMessageWithTransaction($telegramUser, $transaction->id);
 
         $categoryName = $category?->name ?? 'Tanpa Kategori';
-        $savedText = "✅ <b>Tersimpan!</b>\n🆔 <b>ID:</b> {$transaction->id}\n📂 <b>Kategori:</b> {$categoryName}";
+        $amount = number_format(abs($transaction->amount), 0, ',', '.');
+        $merchant = $parsed['merchant'] ?? $parsed['description'] ?? '-';
+        $items = $parsed['items'] ?? '-';
+        $date = $transaction->transaction_date->format('Y-m-d');
+
+        $savedText = "✅ <b>Tersimpan!</b>\n"
+            . "🆔 <b>ID:</b> {$transaction->id}\n"
+            . "🏪 <b>Toko/Sumber:</b> {$merchant}\n"
+            . "📦 <b>Items:</b> {$items}\n"
+            . "💵 <b>Total:</b> Rp {$amount}\n"
+            . "📅 <b>Tanggal:</b> {$date}\n"
+            . "📂 <b>Kategori:</b> {$categoryName}";
 
         return [
             'type' => 'callback_edit',
