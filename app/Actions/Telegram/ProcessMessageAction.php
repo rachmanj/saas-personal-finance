@@ -68,17 +68,55 @@ class ProcessMessageAction
         }
 
         // Handle photo/voice messages
-                if (isset($message['photo']) || isset($message['voice'])) {
-                    $messageType = isset($message['photo']) ? 'photo' : 'voice';
-                    $fileId = isset($message['photo'])
-                        ? end($message['photo'])['file_id'] ?? null
-                        : ($message['voice']['file_id'] ?? null);
+        if (isset($message['photo']) || isset($message['voice'])) {
+            $messageType = isset($message['photo']) ? 'photo' : 'voice';
+            $fileId = isset($message['photo'])
+                ? end($message['photo'])['file_id'] ?? null
+                : ($message['voice']['file_id'] ?? null);
 
-                    $this->saveTelegramMessage($telegramUser, 'inbound', $messageType, '', $fileId, 'processed');
+            $this->saveTelegramMessage($telegramUser, 'inbound', $messageType, '', $fileId, 'processed');
 
-                    $reply = "📸 <b>Struk diterima!</b>\n\nSilakan ketik detail transaksi:\n<b>[nama toko] [total]</b>\n\nContoh: <code>Toko Barokah 9000</code>";
-                    return $this->reply($chatId, $reply);
+            // Download and OCR the file
+            try {
+                $bot = app(\App\Services\TelegramBotService::class);
+                $fileInfo = $bot->getFile($fileId);
+                if ($fileInfo && isset($fileInfo['file_path'])) {
+                    $dir = $messageType === 'photo' ? 'telegram/photos' : 'telegram/voice';
+                    $savePath = storage_path("app/{$dir}/{$fileId}.jpg");
+                    @mkdir(dirname($savePath), 0777, true);
+                    $bot->downloadFile($fileInfo['file_path'], $savePath);
+
+                    $ocrService = app(\App\Services\OcrService::class);
+                    $ocrResult = $ocrService->parse($savePath);
+
+                    if (!empty($ocrResult['raw_text'])) {
+                        // Try to parse OCR text as transaction
+                        $parser = new \App\Actions\Telegram\ParseTransactionTextAction;
+                        $parsed = $parser->execute($ocrResult['raw_text']);
+
+                        if ($parsed['amount'] !== null) {
+                            $account = $this->findAccount($telegramUser);
+                            if ($account) {
+                                $transaction = $this->createTransaction($telegramUser, $account, $parsed);
+                                $reply = $this->formatTransactionReply($transaction, $parsed);
+                                $merchant = $ocrResult['merchant'] ? " di <b>{$ocrResult['merchant']}</b>" : '';
+                                return $this->reply($chatId, "📸 <b>Struk diproses!</b>{$merchant}\n\n" . $reply);
+                            }
+                        }
+
+                        // OCR worked but no amount found — show what was extracted
+                        $preview = substr($ocrResult['raw_text'], 0, 200);
+                        return $this->reply($chatId, "📸 <b>Teks terdeteksi:</b>\n<pre>{$preview}</pre>\n\nKirim totalnya: <b>[jumlah]</b>");
+                    }
                 }
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::warning('Photo processing failed: ' . $e->getMessage());
+            }
+
+            // Fallback
+            $reply = "📸 <b>Struk diterima!</b>\n\nSilakan ketik detail transaksi:\n<b>[nama toko] [total]</b>\n\nContoh: <code>Toko Barokah 9000</code>";
+            return $this->reply($chatId, $reply);
+        }
 
         // Handle text messages — parse and create transaction
         if (!empty($text) && !str_starts_with($text, '/')) {

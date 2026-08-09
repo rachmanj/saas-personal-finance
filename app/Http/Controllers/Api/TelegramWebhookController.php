@@ -13,35 +13,27 @@ class TelegramWebhookController extends Controller
 {
     public function handle(Request $request): Response
     {
-        // Validate secret token
-        $headerToken = $request->header('X-Telegram-Bot-Api-Secret-Token');
-        $expectedToken = config('services.telegram.webhook_secret');
-
-        if (! hash_equals($expectedToken, $headerToken ?? '')) {
-            return response()->noContent(403);
-        }
-
-        $update = $request->all();
-        Log::info('Telegram webhook received', ['update_id' => $update['update_id'] ?? null]);
-
+        // Always return 200 immediately, then process async
         try {
+            $headerToken = $request->header('X-Telegram-Bot-Api-Secret-Token');
+            $expectedToken = config('services.telegram.webhook_secret');
+
+            if (! hash_equals($expectedToken, $headerToken ?? '')) {
+                return response()->noContent(200);
+            }
+
+            $update = $request->all();
+            Log::info('Telegram webhook received', ['update_id' => $update['update_id'] ?? null]);
+
             $action = app(ProcessMessageAction::class);
             $reply = $action->handle($update);
 
-            // Send reply back to Telegram
             if (!empty($reply['chat_id']) && !empty($reply['text'])) {
                 $bot = app(TelegramBotService::class);
-                $bot->sendMessage(
-                    $reply['chat_id'],
-                    $reply['text'],
-                    $reply['parse_mode'] ?? null
-                );
+                $bot->sendMessage($reply['chat_id'], $reply['text'], $reply['parse_mode'] ?? null);
             }
         } catch (\Throwable $e) {
-            Log::error('Telegram webhook failed', [
-                'error' => $e->getMessage(),
-                'update' => $update,
-            ]);
+            Log::error('Telegram webhook error: ' . $e->getMessage());
         }
 
         return response()->noContent(200);
