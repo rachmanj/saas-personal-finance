@@ -1008,6 +1008,7 @@ class ProcessMessageAction
             'amount' => $parsed['amount'],
             'currency' => $account->currency,
             'description' => $description,
+            'toko' => $parsed['merchant'] ?? null,
             'transaction_date' => $parsed['date'] ?? now()->toDateString(),
             'source' => 'telegram',
         ];
