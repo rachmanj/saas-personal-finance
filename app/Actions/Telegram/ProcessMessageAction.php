@@ -721,6 +721,8 @@ class ProcessMessageAction
 
             $reply = "✅ <b>Transaksi berhasil dicatat!</b>\n\n";
 
+            $reply .= "🆔 <b>ID:</b> {$transaction->id}\n";
+
             // Store/Source
             $source = $ocrMerchant ?? $transaction->description;
             $reply .= "🏪 <b>Toko/Sumber:</b> {$source}\n";
