@@ -57,7 +57,7 @@ class BuildDashboardSummaryAction
 
         $total = 0.0;
         foreach ($accounts as $account) {
-            $rate = $this->converter->rateFor($account->currency, 'USD');
+            $rate = $this->converter->rateFor($account->currency, 'IDR');
             $total += (float) $account->balance * $rate;
         }
 

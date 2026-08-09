@@ -13,7 +13,7 @@ class CreateTransactionAction
     public function execute(array $data): Transaction
     {
         return DB::transaction(function () use ($data) {
-            $baseCurrency = $data['base_currency'] ?? 'USD';
+            $baseCurrency = $data['base_currency'] ?? 'IDR';
             $rate = $this->converter->rateFor($data['currency'], $baseCurrency, $data['transaction_date'] ?? null);
 
             $transaction = Transaction::create([

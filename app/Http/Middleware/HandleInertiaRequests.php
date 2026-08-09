@@ -26,6 +26,7 @@ class HandleInertiaRequests extends Middleware
                     'id' => $user->id,
                     'name' => $user->name,
                     'email' => $user->email,
+                    'currency' => $user->currency ?? 'IDR',
                 ] : null,
             ],
             'current_team' => $user && $user->currentTeam ? [
