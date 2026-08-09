@@ -98,7 +98,7 @@ class ProcessMessageAction
                             $account = $this->findAccount($telegramUser);
                             if ($account) {
                                 $transaction = $this->createTransaction($telegramUser, $account, $parsed);
-                                $reply = $this->formatTransactionReply($transaction, $parsed);
+                                $reply = $this->formatTransactionReply($transaction, $parsed, $ocrResult['merchant'], $ocrResult['raw_text']);
                                 $merchant = $ocrResult['merchant'] ? " di <b>{$ocrResult['merchant']}</b>" : '';
                                 return $this->reply($chatId, "📸 <b>Struk diproses!</b>{$merchant}\n\n" . $reply);
                             }
@@ -663,26 +663,32 @@ class ProcessMessageAction
     /**
      * Format a transaction confirmation reply.
      */
-    private function formatTransactionReply(\App\Models\Transaction $transaction, array $parsed): string
-    {
-        $emoji = $transaction->type->value === 'income' ? '💰' : '💸';
-        $label = $transaction->type->value === 'income' ? 'Pemasukan' : 'Pengeluaran';
-        $amount = number_format($transaction->amount, 0, ',', '.');
+    private function formatTransactionReply(\App\Models\Transaction $transaction, array $parsed, ?string $ocrMerchant = null, ?string $ocrItems = null): string
+        {
+            $emoji = $transaction->type->value === 'income' ? '💰' : '💸';
+            $label = $transaction->type->value === 'income' ? 'Pemasukan' : 'Pengeluaran';
+            $amount = number_format(abs($transaction->amount), 0, ',', '.');
 
-        $reply = "{$emoji} <b>{$label} Dicatat!</b>\n\n"
-            . "📝 <b>Deskripsi:</b> {$transaction->description}\n"
-            . "💵 <b>Jumlah:</b> Rp {$amount}\n"
-            . "🏦 <b>Rekening:</b> {$transaction->account->name}\n"
-            . "📅 <b>Tanggal:</b> {$transaction->transaction_date->format('d M Y')}\n";
+            $reply = "✅ <b>Transaksi berhasil dicatat!</b>\n\n";
 
-        if ($transaction->category) {
-            $reply .= "📂 <b>Kategori:</b> {$transaction->category->name}\n";
+            // Store/Source
+            $source = $ocrMerchant ?? $transaction->description;
+            $reply .= "🏪 <b>Toko/Sumber:</b> {$source}\n";
+
+            // Items (from OCR)
+            if ($ocrItems) {
+                $reply .= "📦 <b>Items:</b> {$ocrItems}\n";
+            }
+
+            $reply .= "💵 <b>Total:</b> Rp {$amount}\n";
+            $reply .= "📅 <b>Tanggal:</b> {$transaction->transaction_date->format('Y-m-d')}\n";
+
+            if ($transaction->category) {
+                $reply .= "📂 <b>Kategori:</b> {$transaction->category->name}\n";
+            }
+
+            return $reply;
         }
-
-        $reply .= "\n✅ Transaksi berhasil dicatat!";
-
-        return $reply;
-    }
 
     /**
      * Build a reply payload.
