@@ -27,10 +27,27 @@ class TelegramWebhookController extends Controller
 
             $action = app(ProcessMessageAction::class);
             $reply = $action->handle($update);
+            $bot = app(TelegramBotService::class);
 
-            if (!empty($reply['chat_id']) && !empty($reply['text'])) {
-                $bot = app(TelegramBotService::class);
-                $bot->sendMessage($reply['chat_id'], $reply['text'], $reply['parse_mode'] ?? null);
+            if (($reply['type'] ?? null) === 'callback_edit') {
+                $bot->answerCallbackQuery(
+                    $reply['callback_query_id'],
+                    $reply['callback_text'] ?? null,
+                );
+                $bot->editMessageText(
+                    $reply['chat_id'],
+                    $reply['message_id'],
+                    $reply['text'],
+                    $reply['parse_mode'] ?? null,
+                    $reply['reply_markup'] ?? null,
+                );
+            } elseif (! empty($reply['chat_id']) && ! empty($reply['text'])) {
+                $bot->sendMessage(
+                    $reply['chat_id'],
+                    $reply['text'],
+                    $reply['parse_mode'] ?? null,
+                    $reply['reply_markup'] ?? null,
+                );
             }
         } catch (\Throwable $e) {
             Log::error('Telegram webhook error: ' . $e->getMessage());

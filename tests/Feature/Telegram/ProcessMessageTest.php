@@ -9,6 +9,7 @@ use App\Models\Category;
 use App\Models\TelegramUser;
 use App\Models\Transaction;
 use App\Models\User;
+use App\Services\TelegramBotService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -41,6 +42,7 @@ class ProcessMessageTest extends TestCase
             'team_id' => $this->user->current_team_id,
             'name' => 'Makanan & Minuman',
             'type' => 'expense',
+            'icon' => '🍔',
             'is_active' => true,
         ]);
 
@@ -78,6 +80,62 @@ class ProcessMessageTest extends TestCase
         ], $overrides);
     }
 
+    protected function makeCallbackUpdate(array $parsedData, int $categoryId, int $messageId = 42): array
+    {
+        $teamId = $this->user->current_team_id;
+        $payload = array_merge($parsedData, ['category_id' => $categoryId]);
+        $callbackData = 'cat:' . $teamId . ':' . base64_encode(json_encode($this->compactCallbackPayload($payload)));
+
+        return [
+            'update_id' => 12346,
+            'callback_query' => [
+                'id' => 'callback123',
+                'from' => [
+                    'id' => 987654321,
+                    'is_bot' => false,
+                    'first_name' => 'Test',
+                    'username' => 'testuser',
+                ],
+                'message' => [
+                    'message_id' => $messageId,
+                    'chat' => [
+                        'id' => 123456789,
+                        'type' => 'private',
+                    ],
+                    'text' => 'Konfirmasi Transaksi',
+                ],
+                'data' => $callbackData,
+            ],
+        ];
+    }
+
+    /**
+     * Mirror compact encoding used by ProcessMessageAction to stay within Telegram's 64-byte callback_data limit.
+     */
+    private function compactCallbackPayload(array $data): array
+    {
+        $compact = [
+            'a' => $data['amount'],
+            'd' => $data['description'] ?? '',
+            't' => ($data['type'] ?? 'expense') === 'income' ? 'i' : 'e',
+        ];
+
+        if (! empty($data['date'])) {
+            $compact['dt'] = $data['date'];
+        }
+        if (! empty($data['merchant'])) {
+            $compact['m'] = $data['merchant'];
+        }
+        if (! empty($data['items'])) {
+            $compact['i'] = $data['items'];
+        }
+        if (! empty($data['category_id'])) {
+            $compact['c'] = $data['category_id'];
+        }
+
+        return $compact;
+    }
+
     public function test_process_text_message_creates_expense_transaction(): void
     {
         $update = $this->makeUpdate('makan siang 50rb');
@@ -85,12 +143,28 @@ class ProcessMessageTest extends TestCase
         $action = new ProcessMessageAction;
         $response = $action->handle($update);
 
-        // Assert response
-        $this->assertIsString($response['text']);
+        $this->assertStringContainsString('Konfirmasi Transaksi', $response['text']);
         $this->assertStringContainsString('makan siang', $response['text']);
         $this->assertStringContainsString('50.000', $response['text']);
+        $this->assertArrayHasKey('reply_markup', $response);
+        $this->assertArrayHasKey('inline_keyboard', $response['reply_markup']);
 
-        // Assert transaction created
+        $this->assertDatabaseMissing('transactions', [
+            'description' => 'makan siang',
+            'source' => 'telegram',
+        ]);
+
+        $callbackUpdate = $this->makeCallbackUpdate([
+            'amount' => 50000,
+            'description' => 'makan siang',
+            'type' => 'expense',
+        ], $this->expenseCategory->id);
+
+        $callbackResponse = $action->handle($callbackUpdate);
+
+        $this->assertEquals('callback_edit', $callbackResponse['type']);
+        $this->assertStringContainsString('Tersimpan', $callbackResponse['text']);
+
         $this->assertDatabaseHas('transactions', [
             'team_id' => $this->user->current_team_id,
             'user_id' => $this->user->id,
@@ -100,32 +174,50 @@ class ProcessMessageTest extends TestCase
             'description' => 'makan siang',
             'type' => 'expense',
             'source' => 'telegram',
-        ]);
-
-        // Assert TelegramMessage saved
-        $this->assertDatabaseHas('telegram_messages', [
-            'telegram_user_id' => $this->telegramUser->id,
-            'direction' => 'inbound',
-            'message_type' => 'text',
-            'content' => 'makan siang 50rb',
-            'status' => 'processed',
+            'category_id' => $this->expenseCategory->id,
         ]);
     }
 
     public function test_process_text_message_creates_income_transaction(): void
     {
+        $incomeCategory = Category::factory()->create([
+            'team_id' => $this->user->current_team_id,
+            'name' => 'Gaji',
+            'type' => 'income',
+            'icon' => '💰',
+            'is_active' => true,
+        ]);
+
         $update = $this->makeUpdate('gaji 5 juta');
 
         $action = new ProcessMessageAction;
         $response = $action->handle($update);
 
+        $this->assertStringContainsString('Konfirmasi Transaksi', $response['text']);
         $this->assertStringContainsString('5.000.000', $response['text']);
+        $this->assertArrayHasKey('reply_markup', $response);
+
+        $this->assertDatabaseMissing('transactions', [
+            'type' => 'income',
+            'source' => 'telegram',
+        ]);
+
+        $callbackUpdate = $this->makeCallbackUpdate([
+            'amount' => 5_000_000,
+            'description' => 'gaji',
+            'type' => 'income',
+        ], $incomeCategory->id);
+
+        $callbackResponse = $action->handle($callbackUpdate);
+
+        $this->assertStringContainsString('Tersimpan', $callbackResponse['text']);
 
         $this->assertDatabaseHas('transactions', [
             'team_id' => $this->user->current_team_id,
             'amount' => 5_000_000,
             'type' => 'income',
             'source' => 'telegram',
+            'category_id' => $incomeCategory->id,
         ]);
     }
 
@@ -151,36 +243,70 @@ class ProcessMessageTest extends TestCase
             'direction' => 'inbound',
             'message_type' => 'text',
             'content' => 'beli bensin 100k',
-            'status' => 'processed',
+            'status' => 'pending',
         ]);
     }
 
-    public function test_process_message_auto_categorizes(): void
+    public function test_process_callback_query_creates_transaction(): void
     {
-        // Create a matching categorization rule
-        \App\Models\CategorizationRule::create([
-            'team_id' => $this->user->current_team_id,
-            'user_id' => $this->user->id,
-            'pattern' => 'makan',
-            'category_id' => $this->expenseCategory->id,
-            'confidence' => 1.0,
-            'source' => 'manual',
-        ]);
-
-        $update = $this->makeUpdate('makan siang 50rb');
+        $update = $this->makeCallbackUpdate([
+            'amount' => 50000,
+            'description' => 'makan siang',
+            'type' => 'expense',
+        ], $this->expenseCategory->id);
 
         $action = new ProcessMessageAction;
-        $action->handle($update);
+        $response = $action->handle($update);
 
-        $transaction = Transaction::where('description', 'makan siang')->first();
-        $this->assertNotNull($transaction);
-        $this->assertEquals($this->expenseCategory->id, $transaction->category_id);
+        $this->assertEquals('callback_edit', $response['type']);
+        $this->assertStringContainsString('Tersimpan', $response['text']);
+        $this->assertStringContainsString((string) Transaction::first()->id, $response['text']);
+        $this->assertStringContainsString('Makanan', $response['text']);
+
+        $this->assertDatabaseHas('transactions', [
+            'team_id' => $this->user->current_team_id,
+            'amount' => 50000,
+            'description' => 'makan siang',
+            'category_id' => $this->expenseCategory->id,
+        ]);
+    }
+
+    public function test_process_callback_query_updates_message(): void
+    {
+        config([
+            'services.telegram.webhook_secret' => 'test-secret-token-64-chars',
+            'services.telegram.bot_token' => '123456:ABC-DEF1234ghikl-zyx57W2v1u123ew11',
+        ]);
+
+        $parsed = [
+            'amount' => 50000,
+            'description' => 'makan siang',
+            'type' => 'expense',
+        ];
+
+        $mock = \Mockery::mock(TelegramBotService::class);
+        $mock->shouldReceive('answerCallbackQuery')
+            ->once()
+            ->with('callback123', null);
+        $mock->shouldReceive('editMessageText')
+            ->once()
+            ->withArgs(function (string $chatId, int $messageId, string $text) {
+                return $chatId === '123456789'
+                    && $messageId === 42
+                    && str_contains($text, 'Tersimpan');
+            });
+        $this->app->instance(TelegramBotService::class, $mock);
+
+        $update = $this->makeCallbackUpdate($parsed, $this->expenseCategory->id);
+
+        $this->postJson('/api/telegram/webhook', $update, [
+            'X-Telegram-Bot-Api-Secret-Token' => 'test-secret-token-64-chars',
+        ])->assertStatus(200);
     }
 
     public function test_process_message_handles_unlinked_telegram_user(): void
     {
-        // Create unlinked telegram user
-        $unlinkedUser = TelegramUser::create([
+        TelegramUser::create([
             'user_id' => null,
             'chat_id' => 999999999,
             'username' => 'unlinked',
@@ -201,7 +327,6 @@ class ProcessMessageTest extends TestCase
         $action = new ProcessMessageAction;
         $response = $action->handle($update);
 
-        // Should ask to link account
         $this->assertStringContainsString('hubungkan', strtolower($response['text']));
     }
 
@@ -229,7 +354,6 @@ class ProcessMessageTest extends TestCase
         $action = new ProcessMessageAction;
         $response = $action->handle($update);
 
-        // Should create TelegramUser
         $this->assertDatabaseHas('telegram_users', [
             'chat_id' => 111222333,
             'username' => 'newuser',
@@ -265,7 +389,7 @@ class ProcessMessageTest extends TestCase
         $action = new ProcessMessageAction;
         $response = $action->handle($update);
 
-        $this->assertStringContainsString('segera hadir', strip_tags($response['text']));
+        $this->assertStringContainsString('Struk', strip_tags($response['text']));
     }
 
     public function test_process_message_handles_voice_message(): void
@@ -284,12 +408,11 @@ class ProcessMessageTest extends TestCase
         $action = new ProcessMessageAction;
         $response = $action->handle($update);
 
-        $this->assertStringContainsString('segera hadir', strip_tags($response['text']));
+        $this->assertStringContainsString('Struk', strip_tags($response['text']));
     }
 
     public function test_delete_command_deletes_transaction_by_id(): void
     {
-        // Create a transaction to delete
         $transaction = Transaction::factory()->create([
             'team_id' => $this->user->current_team_id,
             'user_id' => $this->user->id,
@@ -306,13 +429,11 @@ class ProcessMessageTest extends TestCase
         $action = new ProcessMessageAction;
         $response = $action->handle($update);
 
-        // Should confirm deletion
         $this->assertStringContainsString('🗑️', $response['text']);
         $this->assertStringContainsString('Transaksi', $response['text']);
         $this->assertStringContainsString('dihapus', $response['text']);
         $this->assertStringContainsString((string) $transaction->id, $response['text']);
 
-        // Transaction should be soft-deleted
         $this->assertSoftDeleted('transactions', ['id' => $transaction->id]);
     }
 
@@ -328,8 +449,7 @@ class ProcessMessageTest extends TestCase
 
     public function test_delete_command_requires_linked_account(): void
     {
-        // Create unlinked telegram user
-        $unlinkedUser = TelegramUser::create([
+        TelegramUser::create([
             'user_id' => null,
             'chat_id' => 999999999,
             'username' => 'unlinked',
@@ -350,7 +470,6 @@ class ProcessMessageTest extends TestCase
         $action = new ProcessMessageAction;
         $response = $action->handle($update);
 
-        // Should ask to link account
         $this->assertStringContainsString('hubungkan', strtolower($response['text']));
     }
 

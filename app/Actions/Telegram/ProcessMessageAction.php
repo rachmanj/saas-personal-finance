@@ -10,23 +10,28 @@ use App\Models\Category;
 use App\Models\TelegramMessage;
 use App\Models\TelegramUser;
 use App\Models\Transaction;
-use App\Services\CategorizationRuleService;
 use App\Services\CurrencyConverterService;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 
 class ProcessMessageAction
 {
     /**
      * Process an incoming Telegram update and return a reply payload.
      *
-     * @return array{chat_id: string, text: string, parse_mode?: string}
+     * @return array{chat_id?: string, text?: string, parse_mode?: string, reply_markup?: array, type?: string, callback_query_id?: string, message_id?: int}
      */
     public function handle(array $update): array
     {
+        if (isset($update['callback_query'])) {
+            return $this->handleCallbackQuery($update['callback_query']);
+        }
+
         $message = $update['message'] ?? null;
 
-        if (!$message) {
+        if (! $message) {
             return $this->reply('', 'Invalid update');
         }
 
@@ -97,28 +102,43 @@ class ProcessMessageAction
                     $ocrService = app(\App\Services\OcrService::class);
                     $ocrResult = $ocrService->parse($savePath);
 
-                    if (!empty($ocrResult['raw_text'])) {
-                        // Try to parse OCR text as transaction
-                        $parser = new \App\Actions\Telegram\ParseTransactionTextAction;
+                    if (! empty($ocrResult['raw_text'])) {
+                        $merchant = $ocrResult['merchant'] ?? $this->extractMerchantFromRawText($ocrResult['raw_text']);
+                        $items = $this->extractReceiptItems($ocrResult['raw_text']);
+                        $amount = $ocrResult['amount'];
+
+                        $parser = new ParseTransactionTextAction;
                         $parsed = $parser->execute($ocrResult['raw_text']);
 
-                        // Use OCR date if found and text didn't have one
-                        if (empty($parsed['date']) && !empty($ocrResult['date'])) {
+                        if ($amount === null && $parsed['amount'] !== null) {
+                            $amount = $parsed['amount'];
+                        }
+
+                        if (empty($parsed['date']) && ! empty($ocrResult['date'])) {
                             $parsed['date'] = \DateTime::createFromFormat('d/m/Y', $ocrResult['date'])?->format('Y-m-d')
                                 ?? \DateTime::createFromFormat('d-m-Y', $ocrResult['date'])?->format('Y-m-d');
                         }
 
-                        if ($parsed['amount'] !== null) {
+                        if ($amount !== null) {
                             $account = $this->findAccount($telegramUser);
                             if ($account) {
-                                $transaction = $this->createTransaction($telegramUser, $account, $parsed);
-                                $reply = $this->formatTransactionReply($transaction, $parsed, $ocrResult['merchant'], $ocrResult['raw_text']);
-                                $merchant = $ocrResult['merchant'] ? " di <b>{$ocrResult['merchant']}</b>" : '';
-                                return $this->reply($chatId, "📸 <b>Struk diproses!</b>{$merchant}\n\n" . $reply);
+                                $teamId = $telegramUser->user->current_team_id;
+                                $parsedData = [
+                                    'amount' => (int) $amount,
+                                    'description' => $merchant ?? $parsed['description'] ?? 'Struk',
+                                    'type' => $parsed['type'] ?? 'expense',
+                                    'date' => $parsed['date'] ?? null,
+                                    'merchant' => $merchant,
+                                    'items' => $items,
+                                ];
+
+                                $confirmationText = $this->formatConfirmationMessage($parsedData, $merchant, $items);
+                                $keyboard = $this->generateCategoryKeyboard($teamId, $parsedData['type'], $parsedData);
+
+                                return $this->reply($chatId, $confirmationText, $keyboard);
                             }
                         }
 
-                        // OCR worked but no amount found — show what was extracted
                         $preview = substr($ocrResult['raw_text'], 0, 200);
                         return $this->reply($chatId, "📸 <b>Teks terdeteksi:</b>\n<pre>{$preview}</pre>\n\nKirim totalnya: <b>[jumlah]</b>");
                     }
@@ -142,20 +162,16 @@ class ProcessMessageAction
     }
 
     /**
-     * Handle a text message: parse, create transaction, reply.
+     * Handle a text message: parse, show confirmation keyboard.
      */
     private function handleTextMessage(string $chatId, TelegramUser $telegramUser, string $text, array $message): array
     {
-        // Save inbound message
         $this->saveTelegramMessage($telegramUser, 'inbound', 'text', $text, null, 'pending');
 
-        // Parse the text
         $parser = new ParseTransactionTextAction;
         $parsed = $parser->execute($text);
 
-        // No amount found
         if ($parsed['amount'] === null) {
-            // Update message status
             $this->updateLastMessage($telegramUser, 'failed', 'No amount detected');
 
             $reply = "Maaf, aku nggak bisa menemukan jumlah uang di pesanmu. 😅\n\n"
@@ -167,13 +183,12 @@ class ProcessMessageAction
             return $this->reply($chatId, $reply);
         }
 
-        // Find account for the linked user
         $account = $this->findAccount($telegramUser);
 
-        if (!$account) {
+        if (! $account) {
             $this->updateLastMessage($telegramUser, 'failed', 'No account found');
 
-            if (!$telegramUser->user_id) {
+            if (! $telegramUser->user_id) {
                 $reply = "Kamu belum menghubungkan akun Telegram ke akun Ngopi Dulu Donk.\n\n"
                     . "Silakan buka aplikasi web dan hubungkan Telegram kamu dari menu Pengaturan. 📱";
                 return $this->reply($chatId, $reply);
@@ -183,28 +198,328 @@ class ProcessMessageAction
             return $this->reply($chatId, $reply);
         }
 
-        // Create the transaction
+        $teamId = $telegramUser->user->current_team_id;
+        $parsedData = [
+            'amount' => $parsed['amount'],
+            'description' => $parsed['description'],
+            'type' => $parsed['type'],
+            'date' => $parsed['date'] ?? null,
+        ];
+
+        $confirmationText = $this->formatConfirmationMessage($parsedData);
+        $keyboard = $this->generateCategoryKeyboard($teamId, $parsed['type'], $parsedData);
+
+        return $this->reply($chatId, $confirmationText, $keyboard);
+    }
+
+    /**
+     * Handle inline keyboard category selection callback.
+     */
+    private function handleCallbackQuery(array $callback): array
+    {
+        $callbackQueryId = $callback['id'] ?? '';
+        $callbackData = $callback['data'] ?? '';
+        $message = $callback['message'] ?? [];
+        $chatId = (string) ($message['chat']['id'] ?? '0');
+        $messageId = (int) ($message['message_id'] ?? 0);
+
+        $decoded = $this->decodeCallbackData($callbackData);
+        if ($decoded === null) {
+            return [
+                'type' => 'callback_edit',
+                'callback_query_id' => $callbackQueryId,
+                'chat_id' => $chatId,
+                'message_id' => $messageId,
+                'text' => '⚠️ Data tidak valid. Coba kirim ulang transaksi.',
+                'parse_mode' => 'HTML',
+            ];
+        }
+
+        $teamId = $decoded['team_id'];
+        $parsed = $decoded['data'];
+        $categoryId = $parsed['category_id'] ?? null;
+
+        $telegramUser = TelegramUser::where('chat_id', $chatId)->first();
+
+        if (! $telegramUser || ! $telegramUser->user_id) {
+            return [
+                'type' => 'callback_edit',
+                'callback_query_id' => $callbackQueryId,
+                'chat_id' => $chatId,
+                'message_id' => $messageId,
+                'text' => '⚠️ Akun Telegram belum terhubung.',
+                'parse_mode' => 'HTML',
+            ];
+        }
+
+        if ($telegramUser->user->current_team_id !== $teamId) {
+            return [
+                'type' => 'callback_edit',
+                'callback_query_id' => $callbackQueryId,
+                'chat_id' => $chatId,
+                'message_id' => $messageId,
+                'text' => '⚠️ Tim tidak cocok. Coba kirim ulang transaksi.',
+                'parse_mode' => 'HTML',
+            ];
+        }
+
+        $account = $this->findAccount($telegramUser);
+
+        if (! $account) {
+            return [
+                'type' => 'callback_edit',
+                'callback_query_id' => $callbackQueryId,
+                'chat_id' => $chatId,
+                'message_id' => $messageId,
+                'text' => '⚠️ Tidak ada rekening aktif ditemukan.',
+                'parse_mode' => 'HTML',
+            ];
+        }
+
+        $category = null;
+        if ($categoryId) {
+            $category = Category::query()
+                ->where('team_id', $teamId)
+                ->where('id', $categoryId)
+                ->where('is_active', true)
+                ->first();
+        }
+
         try {
-            $transaction = $this->createTransaction($telegramUser, $account, $parsed);
+            $transaction = $this->createTransaction($telegramUser, $account, $parsed, $category?->id);
         } catch (\Throwable $e) {
-            Log::error('Telegram: failed to create transaction', [
+            Log::error('Telegram: failed to create transaction from callback', [
                 'error' => $e->getMessage(),
                 'chat_id' => $chatId,
             ]);
 
-            $this->updateLastMessage($telegramUser, 'failed', $e->getMessage());
-
-            $reply = "⚠️ Gagal mencatat transaksi. Coba lagi ya.";
-            return $this->reply($chatId, $reply);
+            return [
+                'type' => 'callback_edit',
+                'callback_query_id' => $callbackQueryId,
+                'chat_id' => $chatId,
+                'message_id' => $messageId,
+                'text' => '⚠️ Gagal mencatat transaksi. Coba lagi ya.',
+                'parse_mode' => 'HTML',
+            ];
         }
 
-        // Update message with transaction_id and status
         $this->updateLastMessageWithTransaction($telegramUser, $transaction->id);
 
-        // Format reply
-        $reply = $this->formatTransactionReply($transaction, $parsed);
+        $categoryName = $category?->name ?? 'Tanpa Kategori';
+        $savedText = "✅ <b>Tersimpan!</b>\n🆔 <b>ID:</b> {$transaction->id}\n📂 <b>Kategori:</b> {$categoryName}";
 
-        return $this->reply($chatId, $reply);
+        return [
+            'type' => 'callback_edit',
+            'callback_query_id' => $callbackQueryId,
+            'chat_id' => $chatId,
+            'message_id' => $messageId,
+            'text' => $savedText,
+            'parse_mode' => 'HTML',
+        ];
+    }
+
+    /**
+     * Build inline keyboard with expense/income categories (2 per row).
+     */
+    private function generateCategoryKeyboard(int $teamId, string $type, array $parsedData): array
+    {
+        $categories = Category::query()
+            ->where('team_id', $teamId)
+            ->where('type', $type)
+            ->where('is_active', true)
+            ->orderBy('sort_order')
+            ->orderBy('name')
+            ->get();
+
+        $buttons = [];
+        $row = [];
+
+        foreach ($categories as $category) {
+            $icon = $category->icon ?: ($type === 'income' ? '💰' : '💸');
+            $buttonData = array_merge($parsedData, ['category_id' => $category->id]);
+            $row[] = [
+                'text' => "{$icon} {$category->name}",
+                'callback_data' => $this->encodeCallbackData($teamId, $buttonData),
+            ];
+
+            if (count($row) === 2) {
+                $buttons[] = $row;
+                $row = [];
+            }
+        }
+
+        if (! empty($row)) {
+            $buttons[] = $row;
+        }
+
+        return ['inline_keyboard' => $buttons];
+    }
+
+    private function encodeCallbackData(int $teamId, array $data): string
+    {
+        $compact = [
+            'a' => $data['amount'],
+            'd' => $data['description'] ?? '',
+            't' => ($data['type'] ?? 'expense') === 'income' ? 'i' : 'e',
+        ];
+
+        if (! empty($data['date'])) {
+            $compact['dt'] = $data['date'];
+        }
+        if (! empty($data['merchant'])) {
+            $compact['m'] = $data['merchant'];
+        }
+        if (! empty($data['items'])) {
+            $compact['i'] = $data['items'];
+        }
+        if (! empty($data['category_id'])) {
+            $compact['c'] = $data['category_id'];
+        }
+
+        $encoded = 'cat:' . $teamId . ':' . base64_encode(json_encode($compact));
+
+        if (strlen($encoded) <= 64) {
+            return $encoded;
+        }
+
+        $token = Str::random(8);
+        Cache::put('telegram_pending:' . $token, $data, now()->addHour());
+
+        return 'cat:' . $teamId . ':' . $token . ':' . ($data['category_id'] ?? 0);
+    }
+
+  /**
+     * @return array{team_id: int, data: array}|null
+     */
+    private function decodeCallbackData(string $callbackData): ?array
+    {
+        if (! str_starts_with($callbackData, 'cat:')) {
+            return null;
+        }
+
+        $parts = explode(':', $callbackData);
+        if (count($parts) < 3) {
+            return null;
+        }
+
+        $teamId = (int) $parts[1];
+
+        if (count($parts) === 4) {
+            $cached = Cache::get('telegram_pending:' . $parts[2]);
+            if ($cached === null) {
+                return null;
+            }
+
+            $cached['category_id'] = (int) $parts[3];
+
+            return [
+                'team_id' => $teamId,
+                'data' => $cached,
+            ];
+        }
+
+        $payload = base64_decode($parts[2], true);
+        if ($payload === false) {
+            return null;
+        }
+
+        $compact = json_decode($payload, true);
+        if (! is_array($compact)) {
+            return null;
+        }
+
+        return [
+            'team_id' => $teamId,
+            'data' => $this->expandCallbackPayload($compact),
+        ];
+    }
+
+    private function expandCallbackPayload(array $compact): array
+    {
+        $data = [
+            'amount' => $compact['a'] ?? $compact['amount'] ?? null,
+            'description' => $compact['d'] ?? $compact['description'] ?? '',
+            'type' => ($compact['t'] ?? $compact['type'] ?? 'e') === 'i' || ($compact['type'] ?? '') === 'income' ? 'income' : 'expense',
+        ];
+
+        if (isset($compact['dt']) || isset($compact['date'])) {
+            $data['date'] = $compact['dt'] ?? $compact['date'];
+        }
+        if (isset($compact['m']) || isset($compact['merchant'])) {
+            $data['merchant'] = $compact['m'] ?? $compact['merchant'];
+        }
+        if (isset($compact['i']) || isset($compact['items'])) {
+            $data['items'] = $compact['i'] ?? $compact['items'];
+        }
+        if (isset($compact['c']) || isset($compact['category_id'])) {
+            $data['category_id'] = $compact['c'] ?? $compact['category_id'];
+        }
+
+        return $data;
+    }
+
+    private function formatConfirmationMessage(array $parsed, ?string $merchant = null, ?string $items = null): string
+    {
+        $text = "📝 <b>Konfirmasi Transaksi</b>\n\n";
+
+        $source = $merchant ?? $parsed['merchant'] ?? $parsed['description'] ?? '';
+        if ($source !== '') {
+            $text .= "🏪 <b>Sumber:</b> {$source}\n";
+        }
+
+        $itemLine = $items ?? $parsed['items'] ?? null;
+        if ($itemLine) {
+            $text .= "📦 <b>Items:</b> {$itemLine}\n";
+        }
+
+        $amount = number_format((int) $parsed['amount'], 0, ',', '.');
+        $text .= "💵 <b>Total:</b> Rp {$amount}\n\n";
+        $text .= 'Pilih kategori:';
+
+        return $text;
+    }
+
+    private function extractMerchantFromRawText(string $rawText): ?string
+    {
+        $lines = array_filter(array_map('trim', explode("\n", $rawText)));
+
+        foreach ($lines as $line) {
+            if ($line === '' || preg_match('/^[\d\s.\-,]+$/', $line)) {
+                continue;
+            }
+
+            return $line;
+        }
+
+        return null;
+    }
+
+    private function extractReceiptItems(string $rawText): ?string
+    {
+        $lines = array_values(array_filter(array_map('trim', explode("\n", $rawText))));
+        $items = [];
+
+        foreach ($lines as $index => $line) {
+            if ($index === 0) {
+                continue;
+            }
+            if (preg_match('/total/i', $line)) {
+                continue;
+            }
+            if (preg_match('/^[\d\s.,\-]+$/', $line)) {
+                continue;
+            }
+            if (strlen($line) < 2) {
+                continue;
+            }
+            $items[] = $line;
+        }
+
+        if ($items === []) {
+            return null;
+        }
+
+        return implode(', ', array_slice($items, 0, 5));
     }
 
     /**
@@ -679,9 +994,11 @@ class ProcessMessageAction
     /**
      * Create a transaction from parsed data.
      */
-    private function createTransaction(TelegramUser $telegramUser, Account $account, array $parsed): \App\Models\Transaction
+    private function createTransaction(TelegramUser $telegramUser, Account $account, array $parsed, ?int $categoryId = null): \App\Models\Transaction
     {
         $createAction = new CreateTransactionAction(new CurrencyConverterService);
+
+        $description = $parsed['merchant'] ?? $parsed['description'] ?? '';
 
         $data = [
             'team_id' => $telegramUser->user->current_team_id,
@@ -690,34 +1007,16 @@ class ProcessMessageAction
             'type' => $parsed['type'],
             'amount' => $parsed['amount'],
             'currency' => $account->currency,
-            'description' => $parsed['description'],
+            'description' => $description,
             'transaction_date' => $parsed['date'] ?? now()->toDateString(),
             'source' => 'telegram',
         ];
 
-        $transaction = $createAction->execute($data);
-
-        // Auto-categorize
-        $this->autoCategorize($transaction, $parsed['description']);
-
-        return $transaction;
-    }
-
-    /**
-     * Auto-categorize the transaction using CategorizationRuleService.
-     */
-    private function autoCategorize(\App\Models\Transaction $transaction, string $description): void
-    {
-        try {
-            $ruleService = app(CategorizationRuleService::class);
-            $suggestion = $ruleService->suggest($description);
-
-            if ($suggestion['category_id']) {
-                $transaction->update(['category_id' => $suggestion['category_id']]);
-            }
-        } catch (\Throwable $e) {
-            Log::warning('Telegram: auto-categorize failed', ['error' => $e->getMessage()]);
+        if ($categoryId !== null) {
+            $data['category_id'] = $categoryId;
         }
+
+        return $createAction->execute($data);
     }
 
     /**
@@ -804,15 +1103,18 @@ class ProcessMessageAction
             return $reply;
         }
 
-    /**
-     * Build a reply payload.
-     */
-    private function reply(string $chatId, string $text): array
+    private function reply(string $chatId, string $text, ?array $replyMarkup = null): array
     {
-        return [
+        $payload = [
             'chat_id' => $chatId,
             'text' => $text,
             'parse_mode' => 'HTML',
         ];
+
+        if ($replyMarkup !== null) {
+            $payload['reply_markup'] = $replyMarkup;
+        }
+
+        return $payload;
     }
 }

@@ -44,6 +44,41 @@ class TelegramBotService
         return Http::post("{$this->baseUrl}/sendPhoto", $payload)->json();
     }
 
+    public function editMessageText(string $chatId, int $messageId, string $text, ?string $parseMode = null, ?array $replyMarkup = null): array
+    {
+        $payload = [
+            'chat_id' => $chatId,
+            'message_id' => $messageId,
+            'text' => $text,
+            'parse_mode' => $parseMode ?? 'HTML',
+        ];
+
+        if ($replyMarkup !== null) {
+            $payload['reply_markup'] = json_encode($replyMarkup);
+        }
+
+        return Http::post("{$this->baseUrl}/editMessageText", $payload)->json();
+    }
+
+    public function deleteMessage(string $chatId, int $messageId): array
+    {
+        return Http::post("{$this->baseUrl}/deleteMessage", [
+            'chat_id' => $chatId,
+            'message_id' => $messageId,
+        ])->json();
+    }
+
+    public function answerCallbackQuery(string $callbackQueryId, ?string $text = null): array
+    {
+        $payload = ['callback_query_id' => $callbackQueryId];
+
+        if ($text !== null) {
+            $payload['text'] = $text;
+        }
+
+        return Http::post("{$this->baseUrl}/answerCallbackQuery", $payload)->json();
+    }
+
     public function getFileUrl(string $fileId): ?string
     {
         $response = Http::get("{$this->baseUrl}/getFile", ['file_id' => $fileId])->json();
