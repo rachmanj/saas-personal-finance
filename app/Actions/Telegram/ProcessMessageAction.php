@@ -76,42 +76,7 @@ class ProcessMessageAction
 
                     $this->saveTelegramMessage($telegramUser, 'inbound', $messageType, '', $fileId, 'processed');
 
-                    // Download and save the file
-                    try {
-                        $bot = app(\App\Services\TelegramBotService::class);
-                        $fileInfo = $bot->getFile($fileId);
-                        if ($fileInfo && isset($fileInfo['file_path'])) {
-                            $dir = $messageType === 'photo' ? 'telegram/photos' : 'telegram/voice';
-                            $savePath = storage_path("app/{$dir}/{$fileId}.jpg");
-                            @mkdir(dirname($savePath), 0777, true);
-                            $bot->downloadFile($fileInfo['file_path'], $savePath);
-
-                            // Try OCR (stub for now — will be replaced with Google Vision)
-                            $ocrService = app(\App\Services\OcrService::class);
-                            $ocrResult = $ocrService->parse($savePath);
-
-                            if ($ocrResult && !empty($ocrResult['text'])) {
-                                // Parse the OCR text
-                                $parser = new \App\Actions\Telegram\ParseTransactionTextAction;
-                                $parsed = $parser->execute($ocrResult['text']);
-
-                                if ($parsed['amount'] !== null) {
-                                    $account = $this->findAccount($telegramUser);
-                                    if ($account) {
-                                        $transaction = $this->createTransaction($telegramUser, $account, $parsed);
-                                        $reply = $this->formatTransactionReply($transaction, $parsed);
-                                        $reply = "📸 <b>Struk diproses!</b>\n\n" . $reply;
-                                        return $this->reply($chatId, $reply);
-                                    }
-                                }
-                            }
-                        }
-                    } catch (\Throwable $e) {
-                        \Log::warning('Telegram: photo processing failed', ['error' => $e->getMessage()]);
-                    }
-
-                    // Fallback: ask user to type transaction
-                    $reply = "📸 <b>Struk diterima!</b>\n\nOCR belum tersedia. Silakan ketik detail transaksi:\n<b>[nama toko] [total]</b>\n\nContoh: <code>Toko Barokah 9000</code>";
+                    $reply = "📸 <b>Struk diterima!</b>\n\nSilakan ketik detail transaksi:\n<b>[nama toko] [total]</b>\n\nContoh: <code>Toko Barokah 9000</code>";
                     return $this->reply($chatId, $reply);
                 }
 
