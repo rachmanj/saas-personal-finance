@@ -20,6 +20,10 @@ return Application::configure(basePath: dirname(__DIR__))
             'telegram/*',
         ]);
 
+        $middleware->api(prepend: [
+            \Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful::class,
+        ]);
+
         $middleware->web(append: [
             \Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful::class,
             \App\Http\Middleware\HandleInertiaRequests::class,
