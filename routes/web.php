@@ -17,6 +17,9 @@ Route::get('/dev-login', function () {
     return redirect('/dashboard');
 });
 
+// Debug page
+Route::get('/debug', fn () => inertia('Debug'));
+
 Route::get('/', function () {
     return inertia('Welcome');
 });
@@ -81,29 +84,20 @@ Route::middleware('auth')->group(function () {
     Route::get('/reports', fn () => inertia('Reports/Index'))->name('reports');
 
     Route::get('/settings/billing', [BillingController::class, 'index'])->name('settings.billing');
-
     Route::get('/settings/telegram', function () {
         $user = auth()->user()->load('telegramUser');
         $telegramUser = $user->telegramUser;
-
-        $telegram = [
-            'linked' => false,
-            'telegram_user' => null,
-        ];
-
+        $telegram = ['linked' => false, 'telegram_user' => null];
         if ($telegramUser) {
             $telegram = [
-                'linked' => true,
-                'id' => $telegramUser->id,
+                'linked' => true, 'id' => $telegramUser->id,
                 'username' => $telegramUser->username,
                 'first_name' => $telegramUser->first_name,
-                'last_name' => $telegramUser->last_name,
                 'is_active' => $telegramUser->is_active,
                 'settings' => $telegramUser->settings ?? [],
                 'linked_at' => $telegramUser->linked_at?->toISOString(),
             ];
         }
-
         return inertia('Settings/Telegram', ['telegram' => $telegram]);
     })->name('settings.telegram');
     Route::post('/billing/checkout', CheckoutController::class)->name('billing.checkout');

@@ -60,9 +60,10 @@ COPY --from=frontend /app/public/build ./public/build
 # Install PHP deps (production only, no dev)
 RUN composer install --no-dev --no-interaction --optimize-autoloader --no-progress
 
-# Permissions
-RUN chown -R www-data:www-data storage bootstrap/cache \
-    && chmod -R 775 storage bootstrap/cache
+# Permissions — ensure www-data can read/write everything
+RUN chown -R www-data:www-data /var/www \
+    && chmod -R 755 /var/www/app /var/www/routes /var/www/config /var/www/bootstrap /var/www/vendor /var/www/resources /var/www/public \
+    && chmod -R 775 /var/www/storage /var/www/bootstrap/cache
 
 # Nginx config
 COPY docker/nginx.conf /etc/nginx/http.d/default.conf
