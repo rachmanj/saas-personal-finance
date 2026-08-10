@@ -2,7 +2,6 @@ import { Head, router } from '@inertiajs/react';
 import { Button, Form, message } from 'antd';
 import AuthenticatedLayout from '../../Layouts/AuthenticatedLayout';
 import AccountForm from '../../Components/AccountForm';
-import { apiPost } from '../../utils/api';
 
 export default function Create() {
     const [form] = Form.useForm();
@@ -10,23 +9,21 @@ export default function Create() {
     const handleSubmit = async () => {
         try {
             const values = await form.validateFields();
-            await apiPost('/api/accounts', values);
-            message.success('Account created');
-            router.visit('/accounts');
+            router.post('/accounts', values);
         } catch (error) {
-            if (error.errors) {
-                message.error('Validation failed');
+            if (error.errorFields) {
+                message.error('Mohon isi field yang diperlukan');
             }
         }
     };
 
     return (
-        <AuthenticatedLayout title="Create Account">
-            <Head title="Create Account" />
+        <AuthenticatedLayout title="Buat Akun">
+            <Head title="Buat Akun" />
             <AccountForm form={form} />
             <div style={{ marginTop: 16 }}>
                 <Button type="primary" onClick={handleSubmit}>
-                    Create Account
+                    Simpan
                 </Button>
             </div>
         </AuthenticatedLayout>

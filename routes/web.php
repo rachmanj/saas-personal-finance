@@ -8,6 +8,7 @@ use App\Http\Controllers\Billing\CheckoutController;
 use App\Http\Controllers\Billing\PortalController;
 use App\Http\Controllers\Billing\WebhookController;
 use App\Http\Controllers\Api\AccountController;
+use App\Models\Account;
 use App\Models\Category;
 use App\Http\Controllers\Api\TagController;
 use App\Http\Controllers\Api\BudgetController;
@@ -39,13 +40,13 @@ Route::middleware('auth')->group(function () {
         ]);
     })->name('dashboard');
 
-    // Accounts — server-side data via Inertia
-    Route::get('/accounts', function (AccountController $controller) {
-        $request = request()->merge(['includeInactive' => true]);
-        $response = $controller->index($request);
-        $data = $response->getData(true);
+    // Accounts — direct DB operations (no API controller proxy, same pattern as Categories)
+    Route::get('/accounts', function () {
+        $accounts = Account::where('team_id', Auth::user()->current_team_id)
+            ->orderBy('name')
+            ->get();
         return inertia('Accounts/Index', [
-            'accounts' => $data['data'] ?? [],
+            'accounts' => $accounts,
         ]);
     })->name('accounts.index');
 
@@ -53,9 +54,47 @@ Route::middleware('auth')->group(function () {
         return inertia('Accounts/Create');
     })->name('accounts.create');
 
-    Route::get('/accounts/{id}/edit', function (string $id) {
-        return inertia('Accounts/Edit', ['id' => $id]);
+    Route::post('/accounts', function (Request $request) {
+        $validated = $request->validate([
+            'name' => ['required', 'string', 'max:255'],
+            'type' => ['required', 'in:checking,savings,credit_card,cash,investment'],
+            'currency' => ['required', 'string', 'max:3'],
+            'initial_balance' => ['nullable', 'numeric', 'min:0'],
+            'include_in_net_worth' => ['nullable', 'boolean'],
+            'is_active' => ['nullable', 'boolean'],
+            'color' => ['nullable', 'string', 'max:7'],
+            'icon' => ['nullable', 'string', 'max:50'],
+        ]);
+        $validated['balance'] = $validated['initial_balance'] ?? 0;
+        Account::create($validated);
+        return redirect('/accounts')->with('success', 'Akun dibuat');
+    })->name('accounts.store');
+
+    Route::get('/accounts/{account}/edit', function (Account $account) {
+        return inertia('Accounts/Edit', [
+            'account' => $account,
+        ]);
     })->name('accounts.edit');
+
+    Route::put('/accounts/{account}', function (Request $request, Account $account) {
+        $validated = $request->validate([
+            'name' => ['sometimes', 'required', 'string', 'max:255'],
+            'type' => ['sometimes', 'required', 'in:checking,savings,credit_card,cash,investment'],
+            'currency' => ['sometimes', 'required', 'string', 'max:3'],
+            'initial_balance' => ['nullable', 'numeric', 'min:0'],
+            'include_in_net_worth' => ['nullable', 'boolean'],
+            'is_active' => ['nullable', 'boolean'],
+            'color' => ['nullable', 'string', 'max:7'],
+            'icon' => ['nullable', 'string', 'max:50'],
+        ]);
+        $account->update($validated);
+        return redirect('/accounts')->with('success', 'Akun diupdate');
+    })->name('accounts.update');
+
+    Route::delete('/accounts/{account}', function (Account $account) {
+        $account->delete();
+        return redirect('/accounts')->with('success', 'Akun dihapus');
+    })->name('accounts.destroy');
 
     // Categories — direct DB operations (no API controller proxy to avoid FormRequest type mismatches)
     Route::get('/categories', function () {

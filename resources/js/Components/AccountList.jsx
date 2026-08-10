@@ -1,37 +1,17 @@
 import { useEffect, useState } from 'react';
-import { Link } from '@inertiajs/react';
+import { Link, router } from '@inertiajs/react';
 import { ProTable } from '@ant-design/pro-table';
 import { Button, Modal, message, Tag, Space } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
-import { apiDelete, apiGet } from '../utils/api';
 import AccountForm from './AccountForm';
 import { Form } from 'antd';
-import { apiPost } from '../utils/api';
 
 /**
  * @param {{ showCreateModal?: boolean, onCreateModalClose?: () => void, accounts?: object[] }} props
  */
-export default function AccountList({ showCreateModal = false, onCreateModalClose, accounts: accountsProp }) {
-    const [accounts, setAccounts] = useState(accountsProp || []);
-    const [loading, setLoading] = useState(!accountsProp);
+export default function AccountList({ showCreateModal = false, onCreateModalClose, accounts = [] }) {
     const [createOpen, setCreateOpen] = useState(showCreateModal);
     const [createForm] = Form.useForm();
-
-    const loadAccounts = async () => {
-        setLoading(true);
-        try {
-            const response = await apiGet('/api/accounts');
-            setAccounts(response.data || []);
-        } catch {
-            message.error('Gagal memuat akun');
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    useEffect(() => {
-        if (!accountsProp) loadAccounts();
-    }, []);
 
     useEffect(() => {
         setCreateOpen(showCreateModal);
@@ -42,14 +22,8 @@ export default function AccountList({ showCreateModal = false, onCreateModalClos
             title: 'Hapus akun?',
             content: `Yakin ingin menghapus "${record.name}"?`,
             okType: 'danger',
-            onOk: async () => {
-                try {
-                    await apiDelete(`/api/accounts/${record.id}`);
-                    message.success('Akun dihapus');
-                    loadAccounts();
-                } catch {
-                    message.error('Gagal menghapus akun');
-                }
+            onOk: () => {
+                router.delete(`/accounts/${record.id}`);
             },
         });
     };
@@ -57,15 +31,16 @@ export default function AccountList({ showCreateModal = false, onCreateModalClos
     const handleCreate = async () => {
         try {
             const values = await createForm.validateFields();
-            await apiPost('/api/accounts', values);
-            message.success('Akun dibuat');
-            createForm.resetFields();
-            setCreateOpen(false);
-            onCreateModalClose?.();
-            loadAccounts();
+            router.post('/accounts', values, {
+                onSuccess: () => {
+                    createForm.resetFields();
+                    setCreateOpen(false);
+                    onCreateModalClose?.();
+                },
+            });
         } catch (error) {
-            if (error.errors) {
-                message.error('Validasi gagal');
+            if (error.errorFields) {
+                message.error('Mohon isi field yang diperlukan');
             }
         }
     };
@@ -106,7 +81,6 @@ export default function AccountList({ showCreateModal = false, onCreateModalClos
                 columns={columns}
                 dataSource={accounts}
                 rowKey="id"
-                loading={loading}
                 search={false}
                 options={false}
                 pagination={{ pageSize: 10 }}
