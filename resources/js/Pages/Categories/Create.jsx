@@ -1,38 +1,31 @@
-import { useEffect, useState } from 'react';
-import { Head, router } from '@inertiajs/react';
+import { Head, usePage, router } from '@inertiajs/react';
 import { Button, Form, message } from 'antd';
 import AuthenticatedLayout from '../../Layouts/AuthenticatedLayout';
 import CategoryForm from '../../Components/CategoryForm';
-import { apiGet, apiPost } from '../../utils/api';
 
 export default function Create() {
+    const { props } = usePage();
     const [form] = Form.useForm();
-    const [categories, setCategories] = useState([]);
-
-    useEffect(() => {
-        apiGet('/api/categories').then((res) => setCategories(res.data || []));
-    }, []);
+    const parentCategories = props.parentCategories || [];
 
     const handleSubmit = async () => {
         try {
             const values = await form.validateFields();
-            await apiPost('/api/categories', values);
-            message.success('Category created');
-            router.visit('/categories');
+            router.post('/categories', values);
         } catch (error) {
-            if (error.errors) {
-                message.error('Validation failed');
+            if (error.errorFields) {
+                message.error('Mohon isi field yang diperlukan');
             }
         }
     };
 
     return (
-        <AuthenticatedLayout title="Create Category">
-            <Head title="Create Category" />
-            <CategoryForm form={form} categories={categories} />
+        <AuthenticatedLayout title="Buat Kategori">
+            <Head title="Buat Kategori" />
+            <CategoryForm form={form} categories={parentCategories} />
             <div style={{ marginTop: 16 }}>
                 <Button type="primary" onClick={handleSubmit}>
-                    Create Category
+                    Simpan
                 </Button>
             </div>
         </AuthenticatedLayout>

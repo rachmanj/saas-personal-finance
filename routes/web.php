@@ -2,6 +2,7 @@
 
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Http\Request;
 use App\Http\Controllers\Billing\BillingController;
 use App\Http\Controllers\Billing\CheckoutController;
 use App\Http\Controllers\Billing\PortalController;
@@ -65,13 +66,43 @@ Route::middleware('auth')->group(function () {
         ]);
     })->name('categories.index');
 
-    Route::get('/categories/create', function () {
-        return inertia('Categories/Create');
+    Route::get('/categories/create', function (CategoryController $controller) {
+        $response = $controller->index();
+        $data = $response->getData(true);
+        return inertia('Categories/Create', [
+            'parentCategories' => $data['data'] ?? [],
+        ]);
     })->name('categories.create');
 
-    Route::get('/categories/{id}/edit', function (string $id) {
-        return inertia('Categories/Edit', ['id' => $id]);
+    Route::post('/categories', function (Request $request, CategoryController $controller) {
+        $controller->store($request);
+        return redirect('/categories')->with('success', 'Kategori dibuat');
+    })->name('categories.store');
+
+    Route::get('/categories/{id}/edit', function (string $id, CategoryController $controller) {
+        $category = $controller->show($id)->getData(true)['data'] ?? [];
+        $allResponse = $controller->index();
+        $allData = $allResponse->getData(true);
+        return inertia('Categories/Edit', [
+            'category' => $category,
+            'parentCategories' => $allData['data'] ?? [],
+        ]);
     })->name('categories.edit');
+
+    Route::put('/categories/{id}', function (string $id, Request $request, CategoryController $controller) {
+        $controller->update($request, $id);
+        return redirect('/categories')->with('success', 'Kategori diupdate');
+    })->name('categories.update');
+
+    Route::delete('/categories/{id}', function (string $id, CategoryController $controller) {
+        $controller->destroy($id);
+        return redirect('/categories')->with('success', 'Kategori dihapus');
+    })->name('categories.destroy');
+
+    Route::put('/categories/reorder', function (Request $request, CategoryController $controller) {
+        $controller->reorder($request);
+        return redirect('/categories')->with('success', 'Kategori diurutkan');
+    })->name('categories.reorder');
 
     // Tags — server-side data via Inertia
     Route::get('/tags', function (TagController $controller) {
