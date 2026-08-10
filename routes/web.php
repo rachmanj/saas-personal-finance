@@ -9,6 +9,7 @@ use App\Http\Controllers\Billing\PortalController;
 use App\Http\Controllers\Billing\WebhookController;
 use App\Http\Controllers\Api\AccountController;
 use App\Http\Controllers\Api\CategoryController;
+use App\Models\Category;
 use App\Http\Controllers\Api\TagController;
 use App\Http\Controllers\Api\BudgetController;
 use App\Http\Controllers\Api\RecurringTransactionController;
@@ -79,23 +80,23 @@ Route::middleware('auth')->group(function () {
         return redirect('/categories')->with('success', 'Kategori dibuat');
     })->name('categories.store');
 
-    Route::get('/categories/{id}/edit', function (string $id, CategoryController $controller) {
-        $category = $controller->show($id)->getData(true)['data'] ?? [];
+    Route::get('/categories/{category}/edit', function (CategoryController $controller, Category $category) {
+        $categoryData = $controller->show($category)->getData(true)['data'] ?? [];
         $allResponse = $controller->index();
         $allData = $allResponse->getData(true);
         return inertia('Categories/Edit', [
-            'category' => $category,
+            'category' => $categoryData,
             'parentCategories' => $allData['data'] ?? [],
         ]);
     })->name('categories.edit');
 
-    Route::put('/categories/{id}', function (string $id, Request $request, CategoryController $controller) {
-        $controller->update($request, $id);
+    Route::put('/categories/{category}', function (CategoryController $controller, Request $request, Category $category) {
+        $controller->update($request, $category);
         return redirect('/categories')->with('success', 'Kategori diupdate');
     })->name('categories.update');
 
-    Route::delete('/categories/{id}', function (string $id, CategoryController $controller) {
-        $controller->destroy($id);
+    Route::delete('/categories/{category}', function (CategoryController $controller, Category $category) {
+        $controller->destroy($category);
         return redirect('/categories')->with('success', 'Kategori dihapus');
     })->name('categories.destroy');
 
