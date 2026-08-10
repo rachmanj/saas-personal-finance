@@ -8,7 +8,6 @@ use App\Http\Controllers\Billing\CheckoutController;
 use App\Http\Controllers\Billing\PortalController;
 use App\Http\Controllers\Billing\WebhookController;
 use App\Http\Controllers\Api\AccountController;
-use App\Http\Controllers\Api\CategoryController;
 use App\Models\Category;
 use App\Http\Controllers\Api\TagController;
 use App\Http\Controllers\Api\BudgetController;
@@ -58,52 +57,77 @@ Route::middleware('auth')->group(function () {
         return inertia('Accounts/Edit', ['id' => $id]);
     })->name('accounts.edit');
 
-    // Categories — server-side data via Inertia
-    Route::get('/categories', function (CategoryController $controller) {
-        $response = $controller->index();
-        $data = $response->getData(true);
+    // Categories — direct DB operations (no API controller proxy to avoid FormRequest type mismatches)
+    Route::get('/categories', function () {
+        $categories = Category::with('parent')
+            ->orderBy('sort_order')
+            ->orderBy('name')
+            ->get();
         return inertia('Categories/Index', [
-            'categories' => $data['data'] ?? [],
+            'categories' => $categories,
         ]);
     })->name('categories.index');
 
-    Route::get('/categories/create', function (CategoryController $controller) {
-        $response = $controller->index();
-        $data = $response->getData(true);
+    Route::get('/categories/create', function () {
+        $parentCategories = Category::orderBy('sort_order')->orderBy('name')->get();
         return inertia('Categories/Create', [
-            'parentCategories' => $data['data'] ?? [],
+            'parentCategories' => $parentCategories,
         ]);
     })->name('categories.create');
 
-    Route::post('/categories', function (Request $request, CategoryController $controller) {
-        $controller->store($request);
+    Route::post('/categories', function (Request $request) {
+        $validated = $request->validate([
+            'name' => ['required', 'string', 'max:255'],
+            'type' => ['required', 'in:income,expense'],
+            'parent_id' => ['nullable', 'exists:categories,id'],
+            'sort_order' => ['nullable', 'integer'],
+            'color' => ['nullable', 'string', 'max:7'],
+            'icon' => ['nullable', 'string', 'max:50'],
+            'is_active' => ['nullable', 'boolean'],
+        ]);
+        Category::create($validated);
         return redirect('/categories')->with('success', 'Kategori dibuat');
     })->name('categories.store');
 
-    Route::get('/categories/{category}/edit', function (CategoryController $controller, Category $category) {
-        $categoryData = $controller->show($category)->getData(true)['data'] ?? [];
-        $allResponse = $controller->index();
-        $allData = $allResponse->getData(true);
+    // Reorder must be before {category} parameterized routes to avoid route collision
+    Route::put('/categories/reorder', function (Request $request) {
+        $request->validate([
+            'ordered_ids' => ['required', 'array'],
+            'ordered_ids.*' => ['integer', 'exists:categories,id'],
+        ]);
+        foreach ($request->ordered_ids as $index => $id) {
+            Category::where('id', $id)->update(['sort_order' => $index + 1]);
+        }
+        return redirect('/categories')->with('success', 'Kategori diurutkan');
+    })->name('categories.reorder');
+
+    Route::get('/categories/{category}/edit', function (Category $category) {
+        $category->load('parent');
+        $parentCategories = Category::orderBy('sort_order')->orderBy('name')->get();
         return inertia('Categories/Edit', [
-            'category' => $categoryData,
-            'parentCategories' => $allData['data'] ?? [],
+            'category' => $category,
+            'parentCategories' => $parentCategories,
         ]);
     })->name('categories.edit');
 
-    Route::put('/categories/{category}', function (CategoryController $controller, Request $request, Category $category) {
-        $controller->update($request, $category);
+    Route::put('/categories/{category}', function (Request $request, Category $category) {
+        $validated = $request->validate([
+            'name' => ['sometimes', 'required', 'string', 'max:255'],
+            'type' => ['sometimes', 'required', 'in:income,expense'],
+            'parent_id' => ['nullable', 'exists:categories,id'],
+            'sort_order' => ['nullable', 'integer'],
+            'color' => ['nullable', 'string', 'max:7'],
+            'icon' => ['nullable', 'string', 'max:50'],
+            'is_active' => ['nullable', 'boolean'],
+        ]);
+        $category->update($validated);
         return redirect('/categories')->with('success', 'Kategori diupdate');
     })->name('categories.update');
 
-    Route::delete('/categories/{category}', function (CategoryController $controller, Category $category) {
-        $controller->destroy($category);
+    Route::delete('/categories/{category}', function (Category $category) {
+        $category->delete();
         return redirect('/categories')->with('success', 'Kategori dihapus');
     })->name('categories.destroy');
-
-    Route::put('/categories/reorder', function (Request $request, CategoryController $controller) {
-        $controller->reorder($request);
-        return redirect('/categories')->with('success', 'Kategori diurutkan');
-    })->name('categories.reorder');
 
     // Tags — server-side data via Inertia
     Route::get('/tags', function (TagController $controller) {
@@ -177,6 +201,8 @@ Route::middleware('auth')->group(function () {
     })->name('reminders');
 
     Route::get('/goals', fn () => inertia('Goals/Index'))->name('goals');
+
+    Route::get('/reports', fn () => inertia('Reports/Index'))->name('reports');
 
     Route::get('/settings/billing', [BillingController::class, 'index'])->name('settings.billing');
 

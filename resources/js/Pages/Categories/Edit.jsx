@@ -1,4 +1,5 @@
 import { Head, usePage, router } from '@inertiajs/react';
+import { useEffect } from 'react';
 import { Button, Form, message } from 'antd';
 import AuthenticatedLayout from '../../Layouts/AuthenticatedLayout';
 import CategoryForm from '../../Components/CategoryForm';
@@ -9,9 +10,10 @@ export default function Edit() {
     const category = props.category || {};
     const parentCategories = props.parentCategories || [];
 
-    // Set form initial values
-    Form.useEffect(() => {
-        form.setFieldsValue(category);
+    useEffect(() => {
+        if (category.id) {
+            form.setFieldsValue(category);
+        }
     }, [category]);
 
     const handleSubmit = async () => {
