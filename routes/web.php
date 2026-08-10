@@ -209,9 +209,67 @@ Route::middleware('auth')->group(function () {
         ]);
     })->name('transactions.index');
 
-    Route::get('/transactions/{id}', function (string $id) {
-        return inertia('Transactions/Show', ['id' => $id]);
-    })->name('transactions.show');
+    Route::get('/transactions/create', function () {
+        $user = Auth::user();
+        $categories = Category::orderBy('sort_order')->orderBy('name')->get();
+        $accounts = Account::where('team_id', $user->current_team_id)
+            ->orderBy('name')
+            ->get();
+        return inertia('Transactions/Create', [
+            'categories' => $categories,
+            'accounts' => $accounts,
+        ]);
+    })->name('transactions.create');
+
+    Route::post('/transactions', function (Request $request) {
+        $validated = $request->validate([
+            'description' => ['required', 'string', 'max:255'],
+            'amount' => ['required', 'numeric', 'min:0'],
+            'type' => ['required', 'in:income,expense,transfer'],
+            'account_id' => ['required', 'exists:accounts,id'],
+            'category_id' => ['required', 'exists:categories,id'],
+            'transaction_date' => ['required', 'date'],
+            'toko' => ['nullable', 'string', 'max:255'],
+            'notes' => ['nullable', 'string'],
+        ]);
+        $validated['team_id'] = Auth::user()->current_team_id;
+        $validated['user_id'] = Auth::id();
+        \App\Models\Transaction::create($validated);
+        return redirect('/transactions')->with('success', 'Transaksi dibuat');
+    })->name('transactions.store');
+
+    Route::get('/transactions/{transaction}/edit', function (\App\Models\Transaction $transaction) {
+        $user = Auth::user();
+        $categories = Category::orderBy('sort_order')->orderBy('name')->get();
+        $accounts = Account::where('team_id', $user->current_team_id)
+            ->orderBy('name')
+            ->get();
+        return inertia('Transactions/Edit', [
+            'transaction' => $transaction,
+            'categories' => $categories,
+            'accounts' => $accounts,
+        ]);
+    })->name('transactions.edit');
+
+    Route::put('/transactions/{transaction}', function (Request $request, \App\Models\Transaction $transaction) {
+        $validated = $request->validate([
+            'description' => ['sometimes', 'required', 'string', 'max:255'],
+            'amount' => ['sometimes', 'required', 'numeric', 'min:0'],
+            'type' => ['sometimes', 'required', 'in:income,expense,transfer'],
+            'account_id' => ['sometimes', 'required', 'exists:accounts,id'],
+            'category_id' => ['sometimes', 'required', 'exists:categories,id'],
+            'transaction_date' => ['sometimes', 'required', 'date'],
+            'toko' => ['nullable', 'string', 'max:255'],
+            'notes' => ['nullable', 'string'],
+        ]);
+        $transaction->update($validated);
+        return redirect('/transactions')->with('success', 'Transaksi diupdate');
+    })->name('transactions.update');
+
+    Route::delete('/transactions/{transaction}', function (\App\Models\Transaction $transaction) {
+        $transaction->delete();
+        return redirect('/transactions')->with('success', 'Transaksi dihapus');
+    })->name('transactions.destroy');
 
     // Imports — server-side data via Inertia
     Route::get('/imports', function (ImportController $controller) {

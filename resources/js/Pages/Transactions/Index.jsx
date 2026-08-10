@@ -1,17 +1,14 @@
-import { useState, useCallback, useMemo } from 'react';
-import { Head, usePage, router } from '@inertiajs/react';
-import { App, Table, Button, Space, Tag, Tooltip, Modal } from 'antd';
+import { Head, Link, usePage, router } from '@inertiajs/react';
+import { App, Table, Button, Space, Tag, Modal, message } from 'antd';
 import {
     PlusOutlined,
     EditOutlined,
-    EyeOutlined,
     ArrowUpOutlined,
     ArrowDownOutlined,
     SwapOutlined,
     DeleteOutlined,
 } from '@ant-design/icons';
 import AuthenticatedLayout from '../../Layouts/AuthenticatedLayout';
-import { apiDelete } from '../../utils/api';
 import dayjs from 'dayjs';
 
 const typeColorMap = { income: 'green', expense: 'red', transfer: 'blue' };
@@ -19,23 +16,16 @@ const typeColorMap = { income: 'green', expense: 'red', transfer: 'blue' };
 export default function Index() {
     const { props } = usePage();
     const transactions = props.transactions || [];
-    const { message } = App.useApp();
 
     const handleDelete = (record) => {
         Modal.confirm({
             title: 'Hapus transaksi?',
-            content: 'Yakin hapus transaksi ini?',
+            content: `Yakin ingin menghapus "${record.description}"?`,
             okText: 'Hapus',
             okType: 'danger',
             cancelText: 'Batal',
-            onOk: async () => {
-                try {
-                    await apiDelete(`/api/transactions/${record.id}`);
-                    message.success('Transaksi berhasil dihapus');
-                    router.reload();
-                } catch {
-                    message.error('Gagal menghapus transaksi');
-                }
+            onOk: () => {
+                router.delete(`/transactions/${record.id}`);
             },
         });
     };
@@ -62,14 +52,19 @@ export default function Index() {
             render: (cat) => cat ? <Tag color={cat.color}>{cat.name}</Tag> : <Tag>—</Tag> },
         { title: 'Rekening', dataIndex: 'account', key: 'account', width: 120,
             render: (acc) => acc?.name || '—' },
-        { title: 'Aksi', key: 'actions', width: 60,
+        { title: 'Aksi', key: 'actions', width: 70,
             render: (_, record) => (
-                <Button
-                    icon={<DeleteOutlined />}
-                    size="small"
-                    danger
-                    onClick={() => handleDelete(record)}
-                />
+                <Space>
+                    <Link href={`/transactions/${record.id}/edit`}>
+                        <Button icon={<EditOutlined />} size="small" />
+                    </Link>
+                    <Button
+                        icon={<DeleteOutlined />}
+                        size="small"
+                        danger
+                        onClick={() => handleDelete(record)}
+                    />
+                </Space>
             ),
         },
     ];
@@ -78,13 +73,20 @@ export default function Index() {
         <App>
             <AuthenticatedLayout title="Transaksi">
                 <Head title="Transaksi" />
+                <div style={{ marginBottom: 16 }}>
+                    <Link href="/transactions/create">
+                        <Button type="primary" icon={<PlusOutlined />}>
+                            Buat
+                        </Button>
+                    </Link>
+                </div>
                 <Table
                     dataSource={transactions}
                     columns={columns}
                     rowKey="id"
                     size="small"
                     pagination={{ pageSize: 25, showSizeChanger: true, showTotal: (t) => `${t} transaksi` }}
-                    scroll={{ x: 750 }}
+                    scroll={{ x: 820 }}
                 />
             </AuthenticatedLayout>
         </App>
