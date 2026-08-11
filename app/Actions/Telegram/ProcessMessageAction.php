@@ -205,6 +205,7 @@ class ProcessMessageAction
             'type' => $parsed['type'],
             'date' => $parsed['date'] ?? null,
             'merchant' => $parsed['merchant'] ?? null,
+            'items' => $this->cleanItems($parsed['description'], $parsed['merchant'] ?? null),
         ];
 
         $confirmationText = $this->formatConfirmationMessage($parsedData);
@@ -504,6 +505,18 @@ class ProcessMessageAction
         }
 
         return null;
+    }
+
+    /**
+     * Clean description into items string, removing merchant name if present.
+     */
+    private function cleanItems(string $description, ?string $merchant): string
+    {
+        $items = $description;
+        if ($merchant) {
+            $items = trim(preg_replace('/\b' . preg_quote($merchant, '/') . '\b/i', '', $items));
+        }
+        return trim(preg_replace('/\s+/', ' ', $items)) ?: '-';
     }
 
     private function extractReceiptItems(string $rawText): ?string
