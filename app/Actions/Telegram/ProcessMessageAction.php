@@ -204,6 +204,7 @@ class ProcessMessageAction
             'description' => $parsed['description'],
             'type' => $parsed['type'],
             'date' => $parsed['date'] ?? null,
+            'merchant' => $parsed['merchant'] ?? null,
         ];
 
         $confirmationText = $this->formatConfirmationMessage($parsedData);

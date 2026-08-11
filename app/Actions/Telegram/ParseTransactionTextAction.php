@@ -222,7 +222,7 @@ class ParseTransactionTextAction
      */
     private function extractMerchant(string $text): ?string
     {
-        if (preg_match('/\b(?:pakai|pake|via|pakai\s+aplikasi)\s+(\S+)/i', $text, $m)) {
+        if (preg_match('/\b(?:pakai\s+aplikasi|pakai|pake|via)\s+(\S+)/i', $text, $m)) {
             return strtoupper($m[1]);
         }
         if (preg_match('/\bdi\s+(\S+)/i', $text, $m)) {
