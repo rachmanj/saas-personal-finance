@@ -52,9 +52,9 @@ class ParseTransactionTextAction
                 'description' => $description ?: $text,
                 'type' => 'expense',
                 'category_suggestion' => null,
-                'date' => $this->extractDate($text),
-                'merchant' => null,
-                'error' => 'no_amount',
+                                'date' => $this->extractDate($text),
+                                'merchant' => $this->extractMerchant($text),
+                                'error' => 'no_amount',
             ];
         }
 
@@ -70,7 +70,7 @@ class ParseTransactionTextAction
             'type' => $type,
             'category_suggestion' => $categorySuggestion,
             'date' => $this->extractDate($text),
-            'merchant' => null,
+            'merchant' => $this->extractMerchant($text),
             'error' => null,
         ];
     }
@@ -213,6 +213,25 @@ class ParseTransactionTextAction
             return sprintf('%04d-%02d-%02d', $year, $month, $day);
         }
 
+        return null;
+    }
+
+    /**
+     * Extract merchant/store/payment method from text.
+     * "pakai DANA", "via GoPay", "di Alfamart", "pake OVO"
+     */
+    private function extractMerchant(string $text): ?string
+    {
+        if (preg_match('/\b(?:pakai|pake|via|pakai\s+aplikasi)\s+(\S+)/i', $text, $m)) {
+            return strtoupper($m[1]);
+        }
+        if (preg_match('/\bdi\s+(\S+)/i', $text, $m)) {
+            $merchant = $m[1];
+            // Skip common words
+            if (!in_array(strtolower($merchant), ['tanggal', 'bulan', 'tahun', 'hari', 'yang', 'ini', 'itu'])) {
+                return ucfirst(strtolower($merchant));
+            }
+        }
         return null;
     }
 }

@@ -34,7 +34,7 @@ class GeminiService
      */
     public function parseTransactionText(string $text): array
     {
-        $systemPrompt = "Kamu adalah parser transaksi keuangan. Parse pesan berikut ke JSON dengan field: amount (integer), description (string), type (income/expense), category (string), date (Y-m-d, null jika tidak ada), merchant (string, null jika tidak ada). Hanya return JSON, tidak ada teks lain.";
+        $systemPrompt = "Kamu adalah parser transaksi keuangan Bahasa Indonesia. Parse pesan berikut ke JSON dengan field:\n- amount: integer (jumlah uang dalam rupiah)\n- description: string (deskripsi transaksi, tanpa tanggal dan jumlah)\n- type: \"income\" atau \"expense\"\n- category: string (kategori transaksi dalam bahasa indonesia)\n- date: Y-m-d atau null\n- merchant: string (nama toko/aplikasi pembayaran, misal: DANA, GoPay, Alfamart, Tokopedia) atau null\n\nHanya return JSON, tidak ada teks lain.";
 
         $userPrompt = "Parse this Indonesian transaction message into JSON: {amount, description, type (income/expense), category, date (Y-m-d if present), merchant}. Text: {$text}";
 
