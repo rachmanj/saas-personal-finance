@@ -2,18 +2,41 @@
 
 namespace App\Actions\Telegram;
 
+use App\Services\GeminiService;
+use Illuminate\Support\Facades\Log;
+
 class ParseTransactionTextAction
 {
     /**
      * Parse a natural-language transaction message into structured data.
+     * Tries Gemini AI first if configured, falls back to regex parsing.
      *
      * @param string $text Raw message like "makan siang 50rb", "gaji 5 juta"
      *
-     * @return array{amount: ?int, description: string, type: string, category_suggestion: ?string, error: ?string}
+     * @return array{amount: ?int, description: string, type: string, category_suggestion: ?string, date: ?string, merchant: ?string, error: ?string}
      */
     public function execute(string $text): array
     {
         $text = trim(preg_replace('/\s+/', ' ', $text));
+
+        // Try Gemini AI first if API key is configured
+        $geminiService = app(GeminiService::class);
+        if ($geminiService->isConfigured()) {
+            try {
+                $result = $geminiService->parseTransactionText($text);
+                if ($result['amount'] !== null) {
+                    return $result;
+                }
+                Log::info('Gemini returned no amount, falling back to regex', ['text' => $text]);
+            } catch (\Throwable $e) {
+                Log::info('Gemini parse failed, falling back to regex', [
+                    'text' => $text,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        }
+
+        // --- Regex fallback (existing logic) ---
 
         // Extract amount
         $amountParser = new ParseIndonesianAmountAction;
@@ -29,6 +52,8 @@ class ParseTransactionTextAction
                 'description' => $description ?: $text,
                 'type' => 'expense',
                 'category_suggestion' => null,
+                'date' => $this->extractDate($text),
+                'merchant' => null,
                 'error' => 'no_amount',
             ];
         }
@@ -45,6 +70,7 @@ class ParseTransactionTextAction
             'type' => $type,
             'category_suggestion' => $categorySuggestion,
             'date' => $this->extractDate($text),
+            'merchant' => null,
             'error' => null,
         ];
     }

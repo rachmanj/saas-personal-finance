@@ -42,4 +42,8 @@ return [
         'bot_username' => env('TELEGRAM_BOT_USERNAME', 'PersonalFinanceBot'),
     ],
 
+    'gemini' => [
+        'api_key' => env('GEMINI_API_KEY'),
+    ],
+
 ];
