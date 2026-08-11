@@ -513,9 +513,15 @@ class ProcessMessageAction
     private function cleanItems(string $description, ?string $merchant): string
     {
         $items = $description;
+        // Remove merchant name
         if ($merchant) {
             $items = trim(preg_replace('/\b' . preg_quote($merchant, '/') . '\b/i', '', $items));
         }
+        // Remove date prefixes: "8 Agt", "10 Agustus 2026", etc
+        $months = 'jan|feb|mar|apr|mei|jun|jul|agu|agt|sep|okt|nov|des|januari|februari|maret|april|mei|juni|juli|agustus|september|oktober|november|desember';
+        $items = preg_replace('/\b\d{1,2}\s+(' . $months . ')(?:\s+\d{2,4})?\s*/i', '', $items);
+        // Remove leftover connector words: "di", "pakai", "via", "pake"
+        $items = preg_replace('/\b(?:di(?:\s|$)|pakai(?:\s|$)|pake(?:\s|$)|via(?:\s|$))\s*/i', '', $items);
         return trim(preg_replace('/\s+/', ' ', $items)) ?: '-';
     }
 
