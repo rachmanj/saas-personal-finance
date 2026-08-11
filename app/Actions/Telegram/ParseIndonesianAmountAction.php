@@ -37,9 +37,27 @@ class ParseIndonesianAmountAction
         } elseif (preg_match('/(\d+(?:[.,]\d+)?)\s*k\b/i', $textLower, $m)) {
             $multiplier = 1_000;
         } else {
-            // Plain number (no suffix) — match consecutive digits, dots, or commas
-            if (preg_match('/(\d[\d.,]*\d)/', $textLower, $m)) {
-                $multiplier = 1;
+            // Plain number (no suffix) — pick the LARGEST number value, not the first match.
+            // Example: "Tanggal 10 Agt 2026 Bayar BPJS Sofie 452500" → pick 452500, not 10.
+            if (preg_match_all('/(\d[\d.,]*\d)/', $textLower, $matches)) {
+                $largest = null;
+                $largestValue = 0;
+                foreach ($matches[0] as $candidate) {
+                    $clean = $this->normalizeNumeric($candidate);
+                    if (is_numeric($clean)) {
+                        $value = (float) $clean;
+                        if ($value > $largestValue) {
+                            $largestValue = $value;
+                            $largest = $candidate;
+                        }
+                    }
+                }
+                if ($largest !== null) {
+                    $m = [1 => $largest];
+                    $multiplier = 1;
+                } else {
+                    return null;
+                }
             } else {
                 return null;
             }

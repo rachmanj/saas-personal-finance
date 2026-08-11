@@ -54,6 +54,11 @@ class ParseTransactionTextAction
      */
     private function extractDescription(string $text): string
     {
+        // Remove date prefixes like "Tanggal 10 Agt 2026", "10 Agustus 2026", etc.
+        $monthAbb = '(?:Jan(?:uari)?|Feb(?:ruari)?|Mar(?:et)?|Apr(?:il)?|Mei|Jun(?:i)?|Jul(?:i)?|Ag(?:u(?:stus)?)?t?|Sep(?:tember)?|Okt(?:ober)?|Nov(?:ember)?|Des(?:ember)?)';
+        $text = preg_replace('/\bTanggal\s+\d{1,2}\s+' . $monthAbb . '\s+\d{4}\b/i', '', $text);
+        $text = preg_replace('/\b\d{1,2}\s+' . $monthAbb . '\s+\d{4}\b/i', '', $text);
+
         $textLower = mb_strtolower($text);
 
         // Remove amount+optional suffix patterns
@@ -160,13 +165,24 @@ class ParseTransactionTextAction
             if ($d) return $d->format('Y-m-d');
         }
 
-        // "9 Agustus 2026" or "9 Agustus"
-        $idMonths = ['januari','februari','maret','april','mei','juni','juli','agustus','september','oktober','november','desember'];
-        $pattern = '/(\d{1,2})\s*(' . implode('|', $idMonths) . ')(?:\s*(\d{4}))?/i';
+        // "9 Agustus 2026" or "9 Agt 2026" or "9 Agustus"
+        $idMonths = [
+            'januari','februari','maret','april','mei','juni','juli','agustus','september','oktober','november','desember',
+        ];
+        $idMonthAbbreviations = [
+            'jan','feb','mar','apr','mei','jun','jul','agt','sep','okt','nov','des',
+        ];
+        $allMonths = array_merge($idMonths, $idMonthAbbreviations);
+        $pattern = '/(\d{1,2})\s*(' . implode('|', $allMonths) . ')(?:\s*(\d{4}))?/i';
         if (preg_match($pattern, $text, $m)) {
             $day = (int) $m[1];
             $monthName = strtolower($m[2]);
-            $month = array_search($monthName, $idMonths) + 1;
+            // Try full name first, then abbreviation
+            $monthIndex = array_search($monthName, $idMonths);
+            if ($monthIndex === false) {
+                $monthIndex = array_search($monthName, $idMonthAbbreviations);
+            }
+            $month = $monthIndex !== false ? $monthIndex + 1 : 0;
             $year = !empty($m[3]) ? (int) $m[3] : (int) date('Y');
             return sprintf('%04d-%02d-%02d', $year, $month, $day);
         }
