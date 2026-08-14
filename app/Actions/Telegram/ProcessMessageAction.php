@@ -109,9 +109,13 @@ class ProcessMessageAction
                     $ocrResult = $ocrService->parse($savePath);
 
                     if (! empty($ocrResult['raw_text'])) {
-                        $merchant = $ocrResult['merchant'] ?? $this->extractMerchantFromRawText($ocrResult['raw_text']);
-                        $items = $this->extractReceiptItems($ocrResult['raw_text']);
-                        $amount = $ocrResult['amount'];
+                        // Use AI to extract structured receipt data (merchant, items, amount, date)
+                        $aiService = app(\App\Services\AiParserService::class);
+                        $receiptData = $aiService->parseReceipt($ocrResult['raw_text']);
+
+                        $merchant = $receiptData['merchant'] ?? $ocrResult['merchant'] ?? $this->extractMerchantFromRawText($ocrResult['raw_text']);
+                        $items = $receiptData['items'] ?? $this->extractReceiptItems($ocrResult['raw_text']);
+                        $amount = $receiptData['amount'] ?? $ocrResult['amount'];
 
                         $parser = new ParseTransactionTextAction;
                         $parsed = $parser->execute($ocrResult['raw_text']);
