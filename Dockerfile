@@ -24,7 +24,10 @@ RUN apk add --no-cache \
     libxml2-dev \
     oniguruma-dev \
     curl \
-    mysql-client
+    mysql-client \
+    tesseract-ocr \
+    tesseract-ocr-data-eng \
+    poppler-utils
 
 # PHP extensions
 RUN docker-php-ext-configure gd --with-freetype --with-jpeg \

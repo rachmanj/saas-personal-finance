@@ -19,17 +19,17 @@ class ParseTransactionTextAction
     {
         $text = trim(preg_replace('/\s+/', ' ', $text));
 
-        // Try Gemini AI first if API key is configured
-        $geminiService = app(GeminiService::class);
-        if ($geminiService->isConfigured()) {
+        // Try AI parsing first (DeepSeek > Gemini > regex)
+        $aiService = app(\App\Services\AiParserService::class);
+        if ($aiService->isConfigured()) {
             try {
-                $result = $geminiService->parseTransactionText($text);
+                $result = $aiService->parseTransactionText($text);
                 if ($result['amount'] !== null) {
                     return $result;
                 }
-                Log::info('Gemini returned no amount, falling back to regex', ['text' => $text]);
+                Log::info('AI returned no amount, falling back to regex', ['text' => $text]);
             } catch (\Throwable $e) {
-                Log::info('Gemini parse failed, falling back to regex', [
+                Log::info('AI parse failed, falling back to regex', [
                     'text' => $text,
                     'error' => $e->getMessage(),
                 ]);

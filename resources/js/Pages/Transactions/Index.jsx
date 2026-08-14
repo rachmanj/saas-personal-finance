@@ -34,6 +34,8 @@ export default function Index() {
         { title: 'ID', dataIndex: 'id', key: 'id', width: 50 },
         { title: 'Tanggal', dataIndex: 'transaction_date', key: 'date', width: 100,
             render: (v) => dayjs(v).format('DD/MM/YY') },
+        { title: 'Toko', dataIndex: 'toko', key: 'toko', width: 120,
+            render: (v) => v || '—' },
         { title: 'Deskripsi', dataIndex: 'description', key: 'desc', ellipsis: true },
         { title: 'Tipe', dataIndex: 'type', key: 'type', width: 90,
             render: (type) => (

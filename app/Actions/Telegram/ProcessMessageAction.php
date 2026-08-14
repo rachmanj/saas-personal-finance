@@ -80,12 +80,13 @@ class ProcessMessageAction
             return $this->handleKategoriCommand($chatId, $telegramUser, $text);
         }
 
-        // Handle photo/voice messages
-        if (isset($message['photo']) || isset($message['voice'])) {
-            $messageType = isset($message['photo']) ? 'photo' : 'voice';
+        // Handle photo/voice/document (PDF) messages
+        $document = $message['document'] ?? null;
+        if (isset($message['photo']) || isset($message['voice']) || $document) {
+            $messageType = isset($message['photo']) ? 'photo' : (isset($message['voice']) ? 'voice' : 'document');
             $fileId = isset($message['photo'])
                 ? end($message['photo'])['file_id'] ?? null
-                : ($message['voice']['file_id'] ?? null);
+                : (isset($message['voice']) ? $message['voice']['file_id'] ?? null : $document['file_id'] ?? null);
 
             $this->saveTelegramMessage($telegramUser, 'inbound', $messageType, '', $fileId, 'processed');
 
@@ -94,8 +95,13 @@ class ProcessMessageAction
                 $bot = app(\App\Services\TelegramBotService::class);
                 $fileInfo = $bot->getFile($fileId);
                 if ($fileInfo && isset($fileInfo['file_path'])) {
-                    $dir = $messageType === 'photo' ? 'telegram/photos' : 'telegram/voice';
-                    $savePath = storage_path("app/{$dir}/{$fileId}.jpg");
+                    $ext = pathinfo($fileInfo['file_path'], PATHINFO_EXTENSION) ?: ($messageType === 'document' ? 'pdf' : 'jpg');
+                    $dir = match ($messageType) {
+                        'photo' => 'telegram/photos',
+                        'voice' => 'telegram/voice',
+                        default => 'telegram/documents',
+                    };
+                    $savePath = storage_path("app/{$dir}/{$fileId}.{$ext}");
                     @mkdir(dirname($savePath), 0777, true);
                     $bot->downloadFile($fileInfo['file_path'], $savePath);
 

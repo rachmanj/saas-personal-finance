@@ -8,6 +8,73 @@ class OcrService
 {
     public function parse(string $filePath): array
     {
+        // Detect PDF and route to PDF handler
+        if (strtolower(pathinfo($filePath, PATHINFO_EXTENSION)) === 'pdf') {
+            return $this->parsePdf($filePath);
+        }
+
+        return $this->parseImage($filePath);
+    }
+
+    /**
+     * Parse a PDF receipt: try text extraction first, then OCR each page.
+     */
+    public function parsePdf(string $filePath): array
+    {
+        // 1. Try pdftotext for text-based PDFs
+        $textFile = $filePath . '.txt';
+        $cmd = sprintf('pdftotext -layout %s %s 2>/dev/null', escapeshellarg($filePath), escapeshellarg($textFile));
+        exec($cmd, $o, $exitCode);
+
+        $rawText = '';
+        if ($exitCode === 0 && file_exists($textFile)) {
+            $rawText = trim(file_get_contents($textFile));
+            @unlink($textFile);
+        }
+
+        // 2. If no text (scanned PDF), convert pages to images and OCR
+        if (mb_strlen($rawText) < 20) {
+            $rawText = $this->ocrPdfPages($filePath);
+        }
+
+        return $this->buildResult($rawText);
+    }
+
+    /**
+     * Convert PDF pages to PNG then OCR with tesseract.
+     */
+    private function ocrPdfPages(string $filePath): string
+    {
+        $imgPrefix = $filePath . '_page';
+        $cmd = sprintf('pdftoppm -png -r 200 %s %s 2>/dev/null', escapeshellarg($filePath), escapeshellarg($imgPrefix));
+        exec($cmd, $o, $exitCode);
+
+        if ($exitCode !== 0) {
+            Log::warning('PDF to image failed', ['file' => $filePath]);
+            return '';
+        }
+
+        // OCR each generated page image
+        $fullText = '';
+        $pages = glob($imgPrefix . '*.png');
+        foreach ($pages as $pageImg) {
+            $txtFile = $pageImg . '.txt';
+            exec(sprintf('tesseract %s %s 2>/dev/null', escapeshellarg($pageImg), escapeshellarg(str_replace('.txt', '', $txtFile))));
+            if (file_exists($txtFile)) {
+                $fullText .= file_get_contents($txtFile) . "\n";
+                @unlink($txtFile);
+            }
+            @unlink($pageImg);
+        }
+
+        return trim($fullText);
+    }
+
+    /**
+     * Parse a single image (existing behavior).
+     */
+    private function parseImage(string $filePath): array
+    {
         $outputFile = $filePath . '.txt';
 
         $cmd = sprintf(
@@ -20,6 +87,18 @@ class OcrService
 
         if ($exitCode !== 0 || !file_exists($outputFile)) {
             Log::warning('OCR failed', ['file' => $filePath, 'exit' => $exitCode]);
+            return $this->buildResult('');
+        }
+
+        $rawText = file_get_contents($outputFile);
+        @unlink($outputFile);
+
+        return $this->buildResult(trim($rawText));
+    }
+
+    private function buildResult(string $rawText): array
+    {
+        if ($rawText === '') {
             return [
                 'merchant' => null,
                 'amount' => null,
@@ -28,14 +107,11 @@ class OcrService
             ];
         }
 
-        $rawText = file_get_contents($outputFile);
-        @unlink($outputFile);
-
         return [
             'merchant' => $this->extractMerchant($rawText),
             'amount' => $this->extractTotal($rawText),
             'date' => $this->extractDate($rawText),
-            'raw_text' => trim($rawText),
+            'raw_text' => $rawText,
         ];
     }
 
