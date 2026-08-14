@@ -98,7 +98,7 @@ class TelegramBotService
 
     public function getFile(string $fileId): ?array
     {
-        $response = Http::get("{$this->baseUrl}/getFile", ['file_id' => $fileId])->json();
+        $response = Http::timeout(60)->retry(3, 2000)->get("{$this->baseUrl}/getFile", ['file_id' => $fileId])->json();
 
         if (! ($response['ok'] ?? false)) {
             return null;
@@ -110,7 +110,7 @@ class TelegramBotService
     public function downloadFile(string $filePath, string $savePath): bool
     {
         $url = "https://api.telegram.org/file/bot{$this->token}/{$filePath}";
-        $response = Http::get($url);
+        $response = Http::timeout(120)->retry(2, 2000)->get($url);
 
         if ($response->successful()) {
             file_put_contents($savePath, $response->body());
