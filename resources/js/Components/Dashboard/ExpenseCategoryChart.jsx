@@ -38,7 +38,8 @@ export default function ExpenseCategoryChart({ data = [], currency = 'IDR' }) {
   const chartData = data.map((item, idx) => ({
     name: item.name,
     value: item.value,
-    fill: item.color || FALLBACK_COLORS[idx % FALLBACK_COLORS.length],
+    // Always use distinct palette color by index — guarantees different colors
+    fill: FALLBACK_COLORS[idx % FALLBACK_COLORS.length],
   }));
 
   return (
