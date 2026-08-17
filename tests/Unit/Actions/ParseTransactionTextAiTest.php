@@ -3,10 +3,10 @@
 namespace Tests\Unit\Actions;
 
 use App\Actions\Telegram\ParseTransactionTextAction;
-use App\Services\GeminiService;
+use App\Services\AiParserService;
 use Tests\TestCase;
 
-class ParseTransactionTextGeminiTest extends TestCase
+class ParseTransactionTextAiTest extends TestCase
 {
     private ParseTransactionTextAction $action;
 
@@ -16,11 +16,18 @@ class ParseTransactionTextGeminiTest extends TestCase
         $this->action = new ParseTransactionTextAction;
     }
 
-    public function test_it_uses_gemini_when_configured(): void
+    private function aiMock(array $result, bool $configured = true): AiParserService
     {
-        $geminiMock = $this->createMock(GeminiService::class);
-        $geminiMock->method('isConfigured')->willReturn(true);
-        $geminiMock->method('parseTransactionText')->willReturn([
+        $mock = $this->createMock(AiParserService::class);
+        $mock->method('isConfigured')->willReturn($configured);
+        $mock->method('parseTransactionText')->willReturn($result);
+
+        return $mock;
+    }
+
+    public function test_it_uses_ai_when_configured(): void
+    {
+        $mock = $this->aiMock([
             'amount' => 452500,
             'description' => 'Bayar BPJS Sofie',
             'type' => 'expense',
@@ -30,7 +37,7 @@ class ParseTransactionTextGeminiTest extends TestCase
             'error' => null,
         ]);
 
-        $this->app->instance(GeminiService::class, $geminiMock);
+        $this->app->instance(AiParserService::class, $mock);
 
         $result = $this->action->execute('Tanggal 10 Agt 2026 Bayar BPJS Sofie 452500');
 
@@ -43,14 +50,14 @@ class ParseTransactionTextGeminiTest extends TestCase
         $this->assertNull($result['error']);
     }
 
-    public function test_it_falls_back_to_regex_when_gemini_fails(): void
+    public function test_it_falls_back_to_regex_when_ai_fails(): void
     {
-        $geminiMock = $this->createMock(GeminiService::class);
-        $geminiMock->method('isConfigured')->willReturn(true);
-        $geminiMock->method('parseTransactionText')
+        $mock = $this->createMock(AiParserService::class);
+        $mock->method('isConfigured')->willReturn(true);
+        $mock->method('parseTransactionText')
             ->willThrowException(new \RuntimeException('API error'));
 
-        $this->app->instance(GeminiService::class, $geminiMock);
+        $this->app->instance(AiParserService::class, $mock);
 
         $result = $this->action->execute('makan siang 50rb');
 
@@ -59,11 +66,9 @@ class ParseTransactionTextGeminiTest extends TestCase
         $this->assertEquals('expense', $result['type']);
     }
 
-    public function test_it_falls_back_when_gemini_returns_no_amount(): void
+    public function test_it_falls_back_when_ai_returns_no_amount(): void
     {
-        $geminiMock = $this->createMock(GeminiService::class);
-        $geminiMock->method('isConfigured')->willReturn(true);
-        $geminiMock->method('parseTransactionText')->willReturn([
+        $mock = $this->aiMock([
             'amount' => null,
             'description' => 'makan siang',
             'type' => 'expense',
@@ -73,7 +78,7 @@ class ParseTransactionTextGeminiTest extends TestCase
             'error' => 'no_amount',
         ]);
 
-        $this->app->instance(GeminiService::class, $geminiMock);
+        $this->app->instance(AiParserService::class, $mock);
 
         $result = $this->action->execute('makan siang 50rb');
 
@@ -81,13 +86,13 @@ class ParseTransactionTextGeminiTest extends TestCase
         $this->assertEquals('expense', $result['type']);
     }
 
-    public function test_it_uses_regex_when_gemini_not_configured(): void
+    public function test_it_uses_regex_when_ai_not_configured(): void
     {
-        $geminiMock = $this->createMock(GeminiService::class);
-        $geminiMock->method('isConfigured')->willReturn(false);
-        $geminiMock->expects($this->never())->method('parseTransactionText');
+        $mock = $this->createMock(AiParserService::class);
+        $mock->method('isConfigured')->willReturn(false);
+        $mock->expects($this->never())->method('parseTransactionText');
 
-        $this->app->instance(GeminiService::class, $geminiMock);
+        $this->app->instance(AiParserService::class, $mock);
 
         $result = $this->action->execute('makan siang 50rb');
 
@@ -98,30 +103,26 @@ class ParseTransactionTextGeminiTest extends TestCase
 
     public function test_regex_fallback_includes_date_and_merchant_fields(): void
     {
-        // No GEMINI_API_KEY set → uses regex
+        // No API key set → uses regex
         $result = $this->action->execute('makan siang 50rb');
 
         $this->assertArrayHasKey('date', $result);
         $this->assertArrayHasKey('merchant', $result);
     }
 
-    public function test_it_parses_bpjs_message_with_gemini(): void
+    public function test_it_parses_bpjs_message_with_ai(): void
     {
-        $geminiMock = $this->createMock(GeminiService::class);
-        $geminiMock->method('isConfigured')->willReturn(true);
-        $geminiMock->method('parseTransactionText')
-            ->with('Tanggal 10 Agt 2026 Bayar BPJS Sofie 452500')
-            ->willReturn([
-                'amount' => 452500,
-                'description' => 'Bayar BPJS Sofie',
-                'type' => 'expense',
-                'category_suggestion' => 'Kesehatan',
-                'date' => '2026-08-10',
-                'merchant' => 'BPJS',
-                'error' => null,
-            ]);
+        $mock = $this->aiMock([
+            'amount' => 452500,
+            'description' => 'Bayar BPJS Sofie',
+            'type' => 'expense',
+            'category_suggestion' => 'Kesehatan',
+            'date' => '2026-08-10',
+            'merchant' => 'BPJS',
+            'error' => null,
+        ]);
 
-        $this->app->instance(GeminiService::class, $geminiMock);
+        $this->app->instance(AiParserService::class, $mock);
 
         $result = $this->action->execute('Tanggal 10 Agt 2026 Bayar BPJS Sofie 452500');
 

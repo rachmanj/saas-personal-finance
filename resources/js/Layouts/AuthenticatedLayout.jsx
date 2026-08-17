@@ -1,5 +1,5 @@
 import { Link, usePage, router } from '@inertiajs/react';
-import { Layout, Menu, Dropdown, Button, Space } from 'antd';
+import { Layout, Menu, Dropdown, Button, Space, theme } from 'antd';
 import {
     DashboardOutlined,
     WalletOutlined,
@@ -36,6 +36,7 @@ const menuItems = [
 
 export default function AuthenticatedLayout({ children, title }) {
     const { url, props } = usePage();
+    const { token } = theme.useToken();
     const user = props.auth?.user;
 
     const selectedKey = menuItems.find((item) => url.startsWith(item.key))?.key || '/dashboard';
@@ -52,17 +53,17 @@ export default function AuthenticatedLayout({ children, title }) {
 
     return (
         <Layout style={{ minHeight: '100vh' }}>
-            <Sider breakpoint="lg" collapsedWidth={0}>
-                <div style={{ padding: '16px', color: '#fff', fontWeight: 600, fontSize: 16 }}>
+            <Sider breakpoint="lg" collapsedWidth={0} style={{ background: 'var(--m3-surface-container)' }}>
+                <div style={{ padding: '16px', color: token.colorPrimary, fontWeight: 700, fontSize: 18 }}>
                     KeuanganKu
                 </div>
-                <Menu theme="dark" mode="inline" selectedKeys={[selectedKey]} items={menuItems} />
+                <Menu theme="dark" mode="inline" selectedKeys={[selectedKey]} items={menuItems} style={{ background: 'transparent' }} />
             </Sider>
             <Layout>
-                <Header style={{ padding: '0 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <h2 style={{ margin: 0, color: 'inherit' }}>{title}</h2>
+                <Header style={{ padding: '0 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'var(--m3-surface)' }}>
+                    <h2 style={{ margin: 0, color: token.colorText }}>{title}</h2>
                     <Dropdown menu={{ items: userMenuItems }} placement="bottomRight">
-                        <Button type="text" style={{ color: '#fff' }}>
+                        <Button type="text" style={{ color: token.colorText }}>
                             <Space>
                                 <UserOutlined />
                                 {user?.name || 'User'}
@@ -73,7 +74,7 @@ export default function AuthenticatedLayout({ children, title }) {
                 <Content
                     id="main-content"
                     role="main"
-                    style={{ margin: 24, padding: 24, background: 'var(--ant-color-bg-container)', borderRadius: 8 }}
+                    style={{ margin: 24, padding: 24, background: token.colorBgContainer, borderRadius: token.borderRadiusLG }}
                 >
                     {children}
                 </Content>
