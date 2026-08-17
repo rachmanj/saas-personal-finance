@@ -2,6 +2,7 @@ import { Card, Empty, Typography, theme } from 'antd';
 import {
   CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from 'recharts';
+import { M3 } from '../../theme/m3Colors';
 
 const { Text } = Typography;
 
@@ -26,7 +27,7 @@ export default function NetWorthTrendChart({ data = [] }) {
   }
 
   const isPositive = data.length > 0 ? data[data.length - 1].net_worth >= 0 : true;
-  const lineColor = isPositive ? '#52c41a' : '#ff4d4f';
+  const lineColor = isPositive ? M3.success : M3.error;
   const areaGradientId = 'netWorthGradient';
 
   return (

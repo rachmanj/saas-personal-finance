@@ -2,6 +2,7 @@ import { Card, Empty, theme } from 'antd';
 import {
   Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from 'recharts';
+import { M3 } from '../../theme/m3Colors';
 
 function formatRupiah(value) {
   return new Intl.NumberFormat('id-ID', {
@@ -51,9 +52,9 @@ export default function WeeklyCashflowChart({ data = [] }) {
           <Legend
             wrapperStyle={{ color: token.colorText, fontSize: 12 }}
           />
-          <Bar dataKey="income" name="Masuk" fill="#52c41a" radius={[4, 4, 0, 0]} />
-          <Bar dataKey="expense" name="Keluar" fill="#ff4d4f" radius={[4, 4, 0, 0]} />
-          <Bar dataKey="net" name="Bersih" fill="#1677ff" radius={[4, 4, 0, 0]} />
+          <Bar dataKey="income" name="Masuk" fill={M3.success} radius={[4, 4, 0, 0]} />
+          <Bar dataKey="expense" name="Keluar" fill={M3.error} radius={[4, 4, 0, 0]} />
+          <Bar dataKey="net" name="Bersih" fill={M3.primary} radius={[4, 4, 0, 0]} />
         </BarChart>
       </ResponsiveContainer>
     </Card>

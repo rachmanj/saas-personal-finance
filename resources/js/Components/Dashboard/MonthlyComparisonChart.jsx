@@ -2,6 +2,7 @@ import { Card, Empty, Typography, theme } from 'antd';
 import {
   Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from 'recharts';
+import { M3 } from '../../theme/m3Colors';
 
 const { Text } = Typography;
 
@@ -53,8 +54,8 @@ export default function MonthlyComparisonChart({ data = [] }) {
           <Legend
             wrapperStyle={{ color: token.colorText, fontSize: 12 }}
           />
-          <Bar dataKey="income" name="Pemasukan" fill="#52c41a" radius={[4, 4, 0, 0]} />
-          <Bar dataKey="expense" name="Pengeluaran" fill="#ff4d4f" radius={[4, 4, 0, 0]} />
+          <Bar dataKey="income" name="Pemasukan" fill={M3.success} radius={[4, 4, 0, 0]} />
+          <Bar dataKey="expense" name="Pengeluaran" fill={M3.error} radius={[4, 4, 0, 0]} />
         </BarChart>
       </ResponsiveContainer>
     </Card>

@@ -8,6 +8,7 @@ import {
     SwapOutlined,
     DeleteOutlined,
 } from '@ant-design/icons';
+import { M3 } from '../../theme/m3Colors';
 import AuthenticatedLayout from '../../Layouts/AuthenticatedLayout';
 import dayjs from 'dayjs';
 
@@ -46,7 +47,7 @@ export default function Index() {
             )},
         { title: 'Jumlah', dataIndex: 'amount', key: 'amount', width: 140,
             render: (v, r) => (
-                <span style={{ color: r.type === 'income' ? '#52c41a' : r.type === 'expense' ? '#ff4d4f' : '#1677ff', fontWeight: 600 }}>
+                <span style={{ color: r.type === 'income' ? M3.success : r.type === 'expense' ? M3.error : M3.primary, fontWeight: 600 }}>
                     {r.type === 'income' ? '+' : r.type === 'expense' ? '-' : ''}Rp {Number(v).toLocaleString('id-ID')}
                 </span>
             )},

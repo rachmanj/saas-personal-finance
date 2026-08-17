@@ -1,14 +1,10 @@
 import { Card, Empty, Typography, theme } from 'antd';
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip, Legend } from 'recharts';
+import { M3 } from '../../theme/m3Colors';
 
 const { Text } = Typography;
 
-// Fallback colors when category has no color set
-const FALLBACK_COLORS = [
-  '#1677ff', '#52c41a', '#faad14', '#ff4d4f', '#722ed1',
-  '#13c2c2', '#eb2f96', '#fa8c16', '#2f54eb', '#a0d911',
-  '#f5222d', '#fa541c', '#9254de', '#597ef7', '#08979c',
-];
+const FALLBACK_COLORS = M3.palette;
 
 function formatRupiah(value) {
   return new Intl.NumberFormat('id-ID', {
