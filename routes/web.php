@@ -17,6 +17,7 @@ use App\Http\Controllers\Api\BillReminderController;
 use App\Http\Controllers\Api\ImportController;
 
 use App\Actions\Dashboard\BuildDashboardSummaryAction;
+use App\Http\Controllers\TeamController;
 
 require __DIR__.'/auth.php';
 
@@ -39,6 +40,14 @@ Route::middleware('auth')->group(function () {
             'dashboard' => $summaryAction->execute(Auth::user()->current_team_id),
         ]);
     })->name('dashboard');
+
+    // Teams — multi-tenant management (direct DB operations)
+    Route::get('/teams', [TeamController::class, 'index'])->name('teams.index');
+    Route::post('/teams', [TeamController::class, 'store'])->name('teams.store');
+    Route::post('/teams/{team}/switch', [TeamController::class, 'switch'])->name('teams.switch');
+    Route::post('/teams/{team}/invite', [TeamController::class, 'invite'])->name('teams.invite');
+    Route::delete('/teams/{team}/members/{user}', [TeamController::class, 'removeMember'])->name('teams.remove-member');
+    Route::delete('/teams/{team}', [TeamController::class, 'destroy'])->name('teams.destroy');
 
     // Accounts — direct DB operations (no API controller proxy, same pattern as Categories)
     Route::get('/accounts', function () {

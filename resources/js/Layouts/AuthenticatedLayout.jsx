@@ -15,6 +15,8 @@ import {
     UserOutlined,
     LogoutOutlined,
     DollarOutlined,
+    TeamOutlined,
+    CheckOutlined,
 } from '@ant-design/icons';
 
 const { Header, Sider, Content } = Layout;
@@ -29,6 +31,7 @@ const menuItems = [
     { key: '/accounts', icon: <WalletOutlined />, label: <Link href="/accounts">Akun</Link> },
     { key: '/categories', icon: <AppstoreOutlined />, label: <Link href="/categories">Kategori</Link> },
     { key: '/tags', icon: <TagsOutlined />, label: <Link href="/tags">Tag</Link> },
+    { key: '/teams', icon: <TeamOutlined />, label: <Link href="/teams">Tim</Link> },
     { key: '/settings', icon: <SettingOutlined />, label: <Link href="/settings/billing">Pengaturan</Link> },
     { key: '/settings/currency', icon: <DollarOutlined />, label: <Link href="/settings/currency">Mata Uang</Link> },
     { key: '/settings/telegram', icon: <SendOutlined />, label: <Link href="/settings/telegram">Telegram</Link> },
@@ -38,12 +41,30 @@ export default function AuthenticatedLayout({ children, title }) {
     const { url, props } = usePage();
     const { token } = theme.useToken();
     const user = props.auth?.user;
+    const currentTeam = props.current_team;
+    const teams = props.teams || [];
 
     const selectedKey = menuItems.find((item) => url.startsWith(item.key))?.key || '/dashboard';
 
     const handleLogout = () => {
         router.post('/logout');
     };
+
+    const teamMenuItems = [
+        ...(teams || []).map((team) => ({
+            key: `team-${team.id}`,
+            icon: team.id === currentTeam?.id ? <CheckOutlined /> : <TeamOutlined />,
+            label: team.name,
+            onClick: () => router.post(`/teams/${team.id}/switch`),
+        })),
+        { type: 'divider' },
+        {
+            key: 'manage-teams',
+            icon: <SettingOutlined />,
+            label: 'Kelola Tim',
+            onClick: () => router.visit('/teams'),
+        },
+    ];
 
     const userMenuItems = [
         { key: 'email', label: user?.email || 'User', disabled: true },
@@ -62,14 +83,24 @@ export default function AuthenticatedLayout({ children, title }) {
             <Layout>
                 <Header style={{ padding: '0 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'var(--m3-surface)' }}>
                     <h2 style={{ margin: 0, color: token.colorText }}>{title}</h2>
-                    <Dropdown menu={{ items: userMenuItems }} placement="bottomRight">
-                        <Button type="text" style={{ color: token.colorText }}>
-                            <Space>
-                                <UserOutlined />
-                                {user?.name || 'User'}
-                            </Space>
-                        </Button>
-                    </Dropdown>
+                    <Space>
+                        <Dropdown menu={{ items: teamMenuItems }} placement="bottomRight">
+                            <Button type="text" style={{ color: token.colorText }}>
+                                <Space>
+                                    <TeamOutlined />
+                                    {currentTeam?.name || 'Tim'}
+                                </Space>
+                            </Button>
+                        </Dropdown>
+                        <Dropdown menu={{ items: userMenuItems }} placement="bottomRight">
+                            <Button type="text" style={{ color: token.colorText }}>
+                                <Space>
+                                    <UserOutlined />
+                                    {user?.name || 'User'}
+                                </Space>
+                            </Button>
+                        </Dropdown>
+                    </Space>
                 </Header>
                 <Content
                     id="main-content"
