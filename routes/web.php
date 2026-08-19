@@ -382,6 +382,25 @@ Route::middleware('auth')->group(function () {
         $user->save();
         return back()->with('success', 'Mata uang berhasil diperbarui');
     })->name('settings.currency.update');
+
+    Route::get('/settings/password', function () {
+        return inertia('Settings/Password');
+    })->name('settings.password');
+
+    Route::put('/settings/password', function (\Illuminate\Http\Request $request) {
+        $user = auth()->user();
+
+        $validated = $request->validate([
+            'current_password' => ['required', 'current_password'],
+            'password' => ['required', 'string', 'min:8', 'confirmed'],
+        ]);
+
+        $user->forceFill([
+            'password' => \Illuminate\Support\Facades\Hash::make($validated['password']),
+        ])->save();
+
+        return back()->with('success', 'Kata sandi berhasil diperbarui.');
+    })->name('settings.password.update');
 });
 
 Route::post('/webhook/stripe', [WebhookController::class, 'handleWebhook'])->name('webhook.stripe');

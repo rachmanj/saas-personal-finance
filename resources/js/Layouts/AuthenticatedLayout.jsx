@@ -17,6 +17,7 @@ import {
     DollarOutlined,
     TeamOutlined,
     CheckOutlined,
+    LockOutlined,
 } from '@ant-design/icons';
 
 const { Header, Sider, Content } = Layout;
@@ -34,6 +35,7 @@ const menuItems = [
     { key: '/teams', icon: <TeamOutlined />, label: <Link href="/teams">Tim</Link> },
     { key: '/settings', icon: <SettingOutlined />, label: <Link href="/settings/billing">Pengaturan</Link> },
     { key: '/settings/currency', icon: <DollarOutlined />, label: <Link href="/settings/currency">Mata Uang</Link> },
+    { key: '/settings/password', icon: <LockOutlined />, label: <Link href="/settings/password">Kata Sandi</Link> },
     { key: '/settings/telegram', icon: <SendOutlined />, label: <Link href="/settings/telegram">Telegram</Link> },
 ];
 
