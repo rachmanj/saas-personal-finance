@@ -48,6 +48,10 @@ class ProcessMessageAction
             return $this->handleStartCommand($chatId, $telegramUser, $from);
         }
 
+        if (!empty($text) && str_starts_with($text, '/link')) {
+            return $this->handleLinkCommand($chatId, $telegramUser, $text);
+        }
+
         if (!empty($text) && str_starts_with($text, '/help')) {
             return $this->handleHelpCommand($chatId);
         }
@@ -574,11 +578,12 @@ class ProcessMessageAction
 
         if (!$telegramUser->user_id) {
             $reply = "👋 Halo <b>{$firstName}</b>! Aku <b>Ngopi Dulu Donk</b> — asisten catatan keuangan kamu.\n\n"
-                . "Sebelum mulai catat transaksi, kamu perlu menghubungkan Telegram ke akun web dulu ya.\n\n"
+                . "Sebelum mulai, kamu perlu punya akun web dulu. Kalau belum punya, daftar dulu ya.\n\n"
                 . "🔗 <b>Cara menghubungkan:</b>\n"
-                . "1. Buka aplikasi web Ngopi Dulu Donk\n"
+                . "1. Buka web Ngopi Dulu Donk lalu <b>Daftar</b> (kalau belum punya akun)\n"
                 . "2. Masuk ke <b>Pengaturan</b> → <b>Telegram</b>\n"
-                . "3. Klik <b>Hubungkan</b> dan ikuti petunjuknya\n\n"
+                . "3. Klik <b>Buat Token Tautan</b> → salin tokennya\n"
+                . "4. Kirim ke sini: <code>/link [token]</code>\n\n"
                 . "Setelah terhubung, kamu bisa langsung catat transaksi lewat chat ini!\n\n"
                 . "Ketik /help untuk panduan lengkap. 🚀";
         } else {
@@ -592,6 +597,39 @@ class ProcessMessageAction
         }
 
         return $this->reply($chatId, $reply);
+    }
+
+    /**
+     * Handle the /link <token> command — link this Telegram account to a web user.
+     */
+    private function handleLinkCommand(string $chatId, TelegramUser $telegramUser, string $text): array
+    {
+        $this->saveTelegramMessage($telegramUser, 'inbound', 'command', '/link', null, 'processed');
+
+        $token = trim(str_replace('/link', '', $text));
+
+        if ($token === '' || strlen($token) < 16) {
+            return $this->reply($chatId, "⚠️ Token tidak valid.\n\nGunakan format: <code>/link [token]</code>\n\nToken bisa dibuat di web → <b>Pengaturan → Telegram → Buat Token Tautan</b>.");
+        }
+
+        $key = 'telegram_link_token_' . $token;
+        $userId = Cache::get($key);
+
+        if (! $userId) {
+            return $this->reply($chatId, "⚠️ Token salah atau sudah kedaluwarsa.\n\nBuat token baru di web → <b>Pengaturan → Telegram</b>.");
+        }
+
+        // Link this Telegram account to the web user
+        $telegramUser->update([
+            'user_id' => $userId,
+            'linked_at' => now(),
+        ]);
+
+        Cache::forget($key);
+
+        $firstName = htmlspecialchars($telegramUser->first_name ?? 'Sobat');
+
+        return $this->reply($chatId, "✅ <b>Berhasil terhubung!</b>\n\nHalo {$firstName}! Telegram kamu sekarang terhubung ke akun web. 🎉\n\nLangsung catat transaksi aja, contoh:\n• <b>makan siang 50rb</b>\n• <b>gaji 5jt</b>\n\nKetik /help untuk panduan lengkap!");
     }
 
     /**

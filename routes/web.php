@@ -336,6 +336,42 @@ Route::middleware('auth')->group(function () {
         return inertia('Settings/Telegram', ['telegram' => $telegram]);
     })->name('settings.telegram');
 
+    Route::post('/settings/telegram/generate-link-token', function () {
+        $token = \Illuminate\Support\Str::random(64);
+        \Illuminate\Support\Facades\Cache::put('telegram_link_token_' . $token, auth()->id(), 600);
+
+        return redirect('/settings/telegram')->with('link_token', $token);
+    })->name('settings.telegram.generate-link-token');
+
+    Route::delete('/settings/telegram/unlink', function () {
+        $telegramUser = \App\Models\TelegramUser::where('user_id', auth()->id())->first();
+        if ($telegramUser) {
+            $telegramUser->delete();
+        }
+        return redirect('/settings/telegram')->with('success', 'Telegram berhasil diputus.');
+    })->name('settings.telegram.unlink');
+
+    Route::put('/settings/telegram/settings', function (\Illuminate\Http\Request $request) {
+        $telegramUser = \App\Models\TelegramUser::where('user_id', auth()->id())->first();
+        if (! $telegramUser) {
+            return redirect('/settings/telegram')->with('error', 'Telegram belum terhubung.');
+        }
+
+        $validated = $request->validate([
+            'daily_summary' => ['sometimes', 'boolean'],
+            'budget_alerts' => ['sometimes', 'boolean'],
+            'bill_reminders' => ['sometimes', 'boolean'],
+        ]);
+
+        $settings = $telegramUser->settings ?? [];
+        foreach ($validated as $key => $value) {
+            $settings[$key] = $value;
+        }
+        $telegramUser->update(['settings' => $settings]);
+
+        return redirect('/settings/telegram')->with('success', 'Preferensi tersimpan.');
+    })->name('settings.telegram.settings');
+
     Route::post('/billing/checkout', CheckoutController::class)->name('billing.checkout');
     Route::get('/billing/portal', PortalController::class)->name('billing.portal');
 

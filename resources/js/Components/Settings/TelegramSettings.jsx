@@ -1,6 +1,6 @@
-import { SendOutlined, LinkOutlined, DisconnectOutlined, CheckCircleOutlined } from '@ant-design/icons';
-import { router } from '@inertiajs/react';
-import { App, Button, Card, Descriptions, Space, Switch, Tag, Typography } from 'antd';
+import { SendOutlined, LinkOutlined, DisconnectOutlined, CheckCircleOutlined, CopyOutlined } from '@ant-design/icons';
+import { router, usePage } from '@inertiajs/react';
+import { App, Button, Card, Descriptions, Space, Switch, Tag, Typography, Alert } from 'antd';
 import { useState } from 'react';
 
 const { Text, Paragraph } = Typography;
@@ -19,62 +19,38 @@ const { Text, Paragraph } = Typography;
  */
 export default function TelegramSettings({ telegram }) {
     const { message } = App.useApp();
-    const [settings, setSettings] = useState(telegram?.settings || {});
+    const { props } = usePage();
     const [saving, setSaving] = useState(false);
     const [unlinking, setUnlinking] = useState(false);
 
     const isLinked = telegram?.linked === true;
+    const linkToken = props.flash?.link_token ?? null;
 
-    const handleToggle = async (key, checked) => {
-        const newSettings = { ...settings, [key]: checked };
-        setSettings(newSettings);
+    const handleToggle = (key, checked) => {
         setSaving(true);
-
-        try {
-            const response = await fetch('/api/telegram/settings', {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '',
-                },
-                body: JSON.stringify(newSettings),
-            });
-
-            if (response.ok) {
-                message.success('Notification preferences saved.');
-            } else {
-                setSettings(settings); // revert
-                message.error('Failed to save preferences.');
-            }
-        } catch {
-            setSettings(settings); // revert
-            message.error('Network error. Please try again.');
-        } finally {
-            setSaving(false);
-        }
+        router.put('/settings/telegram/settings', { [key]: checked }, {
+            onFinish: () => setSaving(false),
+            onError: () => {
+                setSaving(false);
+                message.error('Gagal menyimpan preferensi.');
+            },
+        });
     };
 
-    const handleUnlink = async () => {
+    const handleUnlink = () => {
         setUnlinking(true);
-        try {
-            const response = await fetch('/api/telegram/unlink', {
-                method: 'DELETE',
-                headers: {
-                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '',
-                },
-            });
+        router.delete('/settings/telegram/unlink', {
+            onFinish: () => setUnlinking(false),
+            onError: () => {
+                setUnlinking(false);
+                message.error('Gagal memutus tautan Telegram.');
+            },
+        });
+    };
 
-            if (response.ok) {
-                message.success('Telegram account unlinked.');
-                router.reload();
-            } else {
-                message.error('Failed to unlink Telegram account.');
-            }
-        } catch {
-            message.error('Network error. Please try again.');
-        } finally {
-            setUnlinking(false);
-        }
+    const copyToken = () => {
+        navigator.clipboard?.writeText(linkToken);
+        message.success('Token disalin ke clipboard.');
     };
 
     if (!isLinked) {
@@ -98,34 +74,33 @@ export default function TelegramSettings({ telegram }) {
                         <Text strong>Cara menghubungkan:</Text>
                         <ol style={{ paddingLeft: 20, margin: 0 }}>
                             <li>Mulai chat dengan bot Telegram kami</li>
+                            <li>Klik <Text strong>Buat Token Tautan</Text> di bawah</li>
                             <li>
-                                Kirim perintah <Text code>/link</Text> dengan token Anda
+                                Kirim perintah <Text code>/link [token]</Text> ke bot
                             </li>
                             <li>Akun Anda akan terhubung secara otomatis</li>
                         </ol>
+
+                        {linkToken && (
+                            <Alert
+                                type="success"
+                                showIcon
+                                message="Token berhasil dibuat!"
+                                description={
+                                    <Space direction="vertical" style={{ width: '100%' }}>
+                                        <Text>Kirim perintah ini ke bot Telegram:</Text>
+                                        <Text code copyable style={{ wordBreak: 'break-all' }}>
+                                            /link {linkToken}
+                                        </Text>
+                                    </Space>
+                                }
+                            />
+                        )}
+
                         <Button
                             type="primary"
                             icon={<LinkOutlined />}
-                            onClick={async () => {
-                                try {
-                                    const response = await fetch('/api/telegram/generate-link-token', {
-                                        method: 'POST',
-                                        headers: {
-                                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '',
-                                        },
-                                    });
-                                    const data = await response.json();
-                                    const token = data?.data?.token;
-                                    if (token) {
-                                        message.info(
-                                            `Send this command to the bot: /link ${token}`,
-                                            10,
-                                        );
-                                    }
-                                } catch {
-                                    message.error('Failed to generate link token.');
-                                }
-                            }}
+                            onClick={() => router.post('/settings/telegram/generate-link-token')}
                         >
                             Buat Token Tautan
                         </Button>
@@ -186,7 +161,7 @@ export default function TelegramSettings({ telegram }) {
                             <Text type="secondary">Terima ringkasan harian keuangan Anda</Text>
                         </div>
                         <Switch
-                            checked={settings.daily_summary ?? true}
+                            checked={telegram.settings?.daily_summary ?? true}
                             onChange={(checked) => handleToggle('daily_summary', checked)}
                             loading={saving}
                         />
@@ -199,7 +174,7 @@ export default function TelegramSettings({ telegram }) {
                             <Text type="secondary">Dapatkan notifikasi saat mendekati batas anggaran</Text>
                         </div>
                         <Switch
-                            checked={settings.budget_alerts ?? true}
+                            checked={telegram.settings?.budget_alerts ?? true}
                             onChange={(checked) => handleToggle('budget_alerts', checked)}
                             loading={saving}
                         />
@@ -212,7 +187,7 @@ export default function TelegramSettings({ telegram }) {
                             <Text type="secondary">Pengingat sebelum tagihan jatuh tempo</Text>
                         </div>
                         <Switch
-                            checked={settings.bill_reminders ?? true}
+                            checked={telegram.settings?.bill_reminders ?? true}
                             onChange={(checked) => handleToggle('bill_reminders', checked)}
                             loading={saving}
                         />
