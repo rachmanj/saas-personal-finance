@@ -482,4 +482,50 @@ class ProcessMessageTest extends TestCase
 
         $this->assertStringContainsString('Transaksi tidak ditemukan', $response['text']);
     }
+
+    public function test_kategori_tambah_adds_new_expense_category(): void
+    {
+        $update = $this->makeUpdate('/kategori tambah Kopi');
+
+        $action = new ProcessMessageAction;
+        $response = $action->handle($update);
+
+        $this->assertStringContainsString('berhasil ditambahkan', $response['text']);
+        $this->assertStringContainsString('Kopi', $response['text']);
+
+        $this->assertDatabaseHas('categories', [
+            'team_id' => $this->user->current_team_id,
+            'name' => 'Kopi',
+            'type' => 'expense',
+        ]);
+    }
+
+    public function test_kategori_tambah_adds_income_category_with_type_suffix(): void
+    {
+        $update = $this->makeUpdate('/kategori tambah Gaji pemasukan');
+
+        $action = new ProcessMessageAction;
+        $response = $action->handle($update);
+
+        $this->assertStringContainsString('berhasil ditambahkan', $response['text']);
+
+        $this->assertDatabaseHas('categories', [
+            'team_id' => $this->user->current_team_id,
+            'name' => 'Gaji',
+            'type' => 'income',
+        ]);
+    }
+
+    public function test_kategori_tambah_rejects_duplicate(): void
+    {
+        $update = $this->makeUpdate('/kategori tambah Makanan & Minuman');
+
+        $action = new ProcessMessageAction;
+        $response = $action->handle($update);
+
+        $this->assertStringContainsString('sudah ada', $response['text']);
+
+        $this->assertEquals(1, Category::where('team_id', $this->user->current_team_id)
+            ->where('name', 'Makanan & Minuman')->count());
+    }
 }

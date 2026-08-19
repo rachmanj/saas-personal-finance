@@ -975,7 +975,9 @@ class ProcessMessageAction
     /**
      * Handle /kategori command.
      * /kategori → list categories
-     * /kategori [ID] [name] → change category
+     * /kategori tambah [nama] → add a new category (default expense)
+     * /kategori tambah [nama] pemasukan → add income category
+     * /kategori [ID] [name] → change a transaction's category
      */
     private function handleKategoriCommand(string $chatId, TelegramUser $telegramUser, string $text): array
     {
@@ -985,6 +987,60 @@ class ProcessMessageAction
         }
 
         $parts = explode(' ', trim($text), 3);
+
+        // /kategori tambah [nama] → add a new category
+        $action = strtolower($parts[1] ?? '');
+        if (in_array($action, ['tambah', 'baru', 'add', 'buat'], true)) {
+            $name = trim($parts[2] ?? '');
+
+            if ($name === '') {
+                return $this->reply($chatId, "Format: <code>/kategori tambah [nama]</code>\n\nContoh:\n• <code>/kategori tambah Kopi</code> (pengeluaran)\n• <code>/kategori tambah Gaji pemasukan</code>");
+            }
+
+            // Allow optional type suffix: "pemasukan" / "income" / "pengeluaran" / "expense"
+            $type = 'expense';
+            $nameLower = strtolower($name);
+            foreach ([' pemasukan', ' income'] as $incomeSuffix) {
+                if (str_ends_with($nameLower, $incomeSuffix)) {
+                    $type = 'income';
+                    $name = trim(substr($name, 0, -strlen($incomeSuffix)));
+                    break;
+                }
+            }
+
+            if ($type === 'expense') {
+                foreach ([' pengeluaran', ' expense'] as $expenseSuffix) {
+                    if (str_ends_with(strtolower($name), $expenseSuffix)) {
+                        $name = trim(substr($name, 0, -strlen($expenseSuffix)));
+                        break;
+                    }
+                }
+            }
+
+            if ($name === '') {
+                return $this->reply($chatId, 'Nama kategori tidak boleh kosong.');
+            }
+
+            $exists = Category::where('team_id', $teamId)
+                ->where('name', $name)
+                ->where('type', $type)
+                ->exists();
+
+            if ($exists) {
+                return $this->reply($chatId, "⚠️ Kategori <b>{$name}</b> sudah ada.");
+            }
+
+            Category::create([
+                'team_id' => $teamId,
+                'name' => $name,
+                'type' => $type,
+                'is_active' => true,
+            ]);
+
+            $icon = $type === 'income' ? '💰' : '💸';
+            return $this->reply($chatId, "✅ Kategori {$icon} <b>{$name}</b> berhasil ditambahkan!");
+        }
+
         $txnId = $parts[1] ?? '';
         $catName = $parts[2] ?? '';
 
