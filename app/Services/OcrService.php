@@ -2,18 +2,107 @@
 
 namespace App\Services;
 
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
 class OcrService
 {
+    private const DEEPSEEK_URL = 'https://api.deepseek.com/chat/completions';
+
+    private const VISION_IMAGE_EXTENSIONS = ['jpg', 'jpeg', 'png', 'webp', 'gif'];
+
     public function parse(string $filePath): array
     {
-        // Detect PDF and route to PDF handler
         if (strtolower(pathinfo($filePath, PATHINFO_EXTENSION)) === 'pdf') {
             return $this->parsePdf($filePath);
         }
 
+        if ($this->shouldUseVision($filePath)) {
+            try {
+                return $this->parseWithVision($filePath);
+            } catch (\Throwable $e) {
+                Log::warning('DeepSeek vision OCR failed, falling back to tesseract', [
+                    'file' => $filePath,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        }
+
         return $this->parseImage($filePath);
+    }
+
+    public function parseWithVision(string $filePath): array
+    {
+        $apiKey = config('services.deepseek.api_key');
+        if (empty($apiKey)) {
+            throw new \RuntimeException('DeepSeek API key not configured');
+        }
+
+        if (!file_exists($filePath)) {
+            throw new \RuntimeException('File not found: ' . $filePath);
+        }
+
+        $mimeType = $this->detectMimeType($filePath);
+        $base64 = base64_encode(file_get_contents($filePath));
+        $dataUrl = "data:{$mimeType};base64,{$base64}";
+
+        $systemPrompt = "Kamu adalah parser struk belanja Bahasa Indonesia. Ekstrak data dari gambar struk belanja ke JSON.\n"
+            . "Field:\n"
+            . "- merchant: string (nama toko, contoh: Fore Coffee)\n"
+            . "- items: string (daftar item yang dibeli, pisahkan dengan koma, tanpa harga dan jumlah. Contoh: \"Regular Hot Americano, Butter Croissant, Tas Belanja\")\n"
+            . "- amount: integer (total pembayaran dalam rupiah)\n"
+            . "- date: string (Y-m-d atau null)\n"
+            . "Abaikan alamat toko, NPWP, nama customer, nomor order, dan informasi pajak.\n"
+            . "Hanya return JSON, tidak ada teks lain.";
+
+        $response = Http::timeout(30)
+            ->withToken($apiKey)
+            ->post(self::DEEPSEEK_URL, [
+                'model' => config('services.deepseek.vision_model', 'deepseek-v4-flash-vision-exp'),
+                'messages' => [
+                    ['role' => 'system', 'content' => $systemPrompt],
+                    [
+                        'role' => 'user',
+                        'content' => [
+                            ['type' => 'text', 'text' => 'Ekstrak data dari struk belanja pada gambar ini.'],
+                            [
+                                'type' => 'image_url',
+                                'image_url' => [
+                                    'url' => $dataUrl,
+                                    'detail' => 'low',
+                                ],
+                            ],
+                        ],
+                    ],
+                ],
+                'temperature' => 0.1,
+                'max_tokens' => 400,
+            ]);
+
+        if (!$response->successful()) {
+            throw new \RuntimeException('DeepSeek Vision API error: ' . $response->status());
+        }
+
+        $data = $response->json();
+        $content = $data['choices'][0]['message']['content'] ?? '';
+        $content = trim(preg_replace('/^```(?:json)?\s*|\s*```$/m', '', $content));
+        $parsed = json_decode($content, true);
+
+        if (!is_array($parsed)) {
+            throw new \RuntimeException('Invalid JSON from DeepSeek Vision');
+        }
+
+        $merchant = $parsed['merchant'] ?? null;
+        $items = $parsed['items'] ?? null;
+        $amount = isset($parsed['amount']) ? (int) $parsed['amount'] : null;
+        $date = $parsed['date'] ?? null;
+
+        return [
+            'merchant' => $merchant,
+            'amount' => $amount,
+            'date' => $date,
+            'raw_text' => $this->buildRawTextFromVision($merchant, $items, $parsed),
+        ];
     }
 
     /**
@@ -21,7 +110,6 @@ class OcrService
      */
     public function parsePdf(string $filePath): array
     {
-        // 1. Try pdftotext for text-based PDFs
         $textFile = $filePath . '.txt';
         $cmd = sprintf('pdftotext -layout %s %s 2>/dev/null', escapeshellarg($filePath), escapeshellarg($textFile));
         exec($cmd, $o, $exitCode);
@@ -32,12 +120,48 @@ class OcrService
             @unlink($textFile);
         }
 
-        // 2. If no text (scanned PDF), convert pages to images and OCR
         if (mb_strlen($rawText) < 20) {
             $rawText = $this->ocrPdfPages($filePath);
         }
 
         return $this->buildResult($rawText);
+    }
+
+    private function shouldUseVision(string $filePath): bool
+    {
+        if (!config('services.deepseek.vision_enabled', true)) {
+            return false;
+        }
+
+        if (empty(config('services.deepseek.api_key'))) {
+            return false;
+        }
+
+        $ext = strtolower(pathinfo($filePath, PATHINFO_EXTENSION));
+
+        return in_array($ext, self::VISION_IMAGE_EXTENSIONS, true);
+    }
+
+    private function detectMimeType(string $filePath): string
+    {
+        $ext = strtolower(pathinfo($filePath, PATHINFO_EXTENSION));
+
+        return match ($ext) {
+            'png' => 'image/png',
+            'webp' => 'image/webp',
+            'gif' => 'image/gif',
+            default => 'image/jpeg',
+        };
+    }
+
+    private function buildRawTextFromVision(?string $merchant, ?string $items, array $parsed): string
+    {
+        $parts = array_filter([$merchant, $items]);
+        if ($parts !== []) {
+            return implode(', ', $parts);
+        }
+
+        return json_encode($parsed, JSON_UNESCAPED_UNICODE) ?: '';
     }
 
     /**
@@ -51,10 +175,10 @@ class OcrService
 
         if ($exitCode !== 0) {
             Log::warning('PDF to image failed', ['file' => $filePath]);
+
             return '';
         }
 
-        // OCR each generated page image
         $fullText = '';
         $pages = glob($imgPrefix . '*.png');
         foreach ($pages as $pageImg) {
@@ -71,9 +195,9 @@ class OcrService
     }
 
     /**
-     * Parse a single image (existing behavior).
+     * Parse a single image with tesseract (fallback).
      */
-    private function parseImage(string $filePath): array
+    protected function parseImage(string $filePath): array
     {
         $outputFile = $filePath . '.txt';
 
@@ -87,6 +211,7 @@ class OcrService
 
         if ($exitCode !== 0 || !file_exists($outputFile)) {
             Log::warning('OCR failed', ['file' => $filePath, 'exit' => $exitCode]);
+
             return $this->buildResult('');
         }
 
@@ -120,30 +245,30 @@ class OcrService
         $lines = explode("\n", $text);
         foreach ($lines as $line) {
             $line = trim($line);
-            // Skip empty lines and number-only lines
             if (empty($line) || preg_match('/^[\d\s.\-,]+$/', $line)) {
                 continue;
             }
-            // First meaningful line is usually the merchant name
             if (preg_match('/^[A-Z][A-Z\s&.]+$/i', $line) && strlen($line) > 3) {
                 return $line;
             }
         }
+
         return null;
     }
 
     private function extractTotal(string $text): ?float
     {
-        // Look for "Total" line
         if (preg_match('/Total\s*[:=]*\s*[\d.,]+/i', $text, $m)) {
             preg_match('/[\d.,]+/', $m[0], $num);
+
             return $this->parseAmount($num[0] ?? '0');
         }
-        // Look for last amount in receipt
         if (preg_match_all('/([\d.,]+)\s*$/', $text, $matches)) {
             $last = end($matches[1]);
+
             return $this->parseAmount($last);
         }
+
         return null;
     }
 
@@ -152,14 +277,15 @@ class OcrService
         if (preg_match('/(\d{2}[-\/]\d{2}[-\/]\d{2,4})/', $text, $m)) {
             return $m[1];
         }
+
         return null;
     }
 
     private function parseAmount(string $val): float
     {
-        // Indonesian format: 9.000 or 9,000
         $val = str_replace('.', '', $val);
         $val = str_replace(',', '.', $val);
+
         return (float) $val;
     }
 }
