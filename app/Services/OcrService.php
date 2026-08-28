@@ -7,7 +7,7 @@ use Illuminate\Support\Facades\Log;
 
 class OcrService
 {
-    private const DEEPSEEK_URL = 'https://api.deepseek.com/chat/completions';
+    private const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions';
 
     private const VISION_IMAGE_EXTENSIONS = ['jpg', 'jpeg', 'png', 'webp', 'gif'];
 
@@ -21,7 +21,7 @@ class OcrService
             try {
                 return $this->parseWithVision($filePath);
             } catch (\Throwable $e) {
-                Log::warning('DeepSeek vision OCR failed, falling back to tesseract', [
+                Log::warning('OpenRouter vision OCR failed, falling back to tesseract', [
                     'file' => $filePath,
                     'error' => $e->getMessage(),
                 ]);
@@ -33,9 +33,9 @@ class OcrService
 
     public function parseWithVision(string $filePath): array
     {
-        $apiKey = config('services.deepseek.api_key');
+        $apiKey = config('services.openrouter.api_key');
         if (empty($apiKey)) {
-            throw new \RuntimeException('DeepSeek API key not configured');
+            throw new \RuntimeException('OpenRouter API key not configured');
         }
 
         if (!file_exists($filePath)) {
@@ -55,10 +55,14 @@ class OcrService
             . "Abaikan alamat toko, NPWP, nama customer, nomor order, dan informasi pajak.\n"
             . "Hanya return JSON, tidak ada teks lain.";
 
-        $response = Http::timeout(30)
+        $response = Http::timeout(45)
             ->withToken($apiKey)
-            ->post(self::DEEPSEEK_URL, [
-                'model' => config('services.deepseek.vision_model', 'deepseek-v4-flash-vision-exp'),
+            ->withHeaders([
+                'HTTP-Referer' => config('app.url'),
+                'X-Title' => 'Ngopi Dulu Donk',
+            ])
+            ->post(self::OPENROUTER_URL, [
+                'model' => config('services.openrouter.vision_model', 'openai/gpt-4o-mini'),
                 'messages' => [
                     ['role' => 'system', 'content' => $systemPrompt],
                     [
@@ -80,7 +84,7 @@ class OcrService
             ]);
 
         if (!$response->successful()) {
-            throw new \RuntimeException('DeepSeek Vision API error: ' . $response->status());
+            throw new \RuntimeException('OpenRouter Vision API error: ' . $response->status() . ' ' . $response->body());
         }
 
         $data = $response->json();
@@ -89,7 +93,7 @@ class OcrService
         $parsed = json_decode($content, true);
 
         if (!is_array($parsed)) {
-            throw new \RuntimeException('Invalid JSON from DeepSeek Vision');
+            throw new \RuntimeException('Invalid JSON from OpenRouter Vision');
         }
 
         $merchant = $parsed['merchant'] ?? null;
@@ -129,11 +133,11 @@ class OcrService
 
     private function shouldUseVision(string $filePath): bool
     {
-        if (!config('services.deepseek.vision_enabled', true)) {
+        if (!config('services.openrouter.vision_enabled', true)) {
             return false;
         }
 
-        if (empty(config('services.deepseek.api_key'))) {
+        if (empty(config('services.openrouter.api_key'))) {
             return false;
         }
 

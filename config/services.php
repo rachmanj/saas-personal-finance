@@ -48,8 +48,12 @@ return [
 
     'deepseek' => [
         'api_key' => env('DEEPSEEK_API_KEY'),
-        'vision_model' => env('DEEPSEEK_VISION_MODEL', 'deepseek-v4-flash-vision-exp'),
-        'vision_enabled' => env('DEEPSEEK_VISION_ENABLED', true),
+    ],
+
+    'openrouter' => [
+        'api_key' => env('OPENROUTER_API_KEY'),
+        'vision_model' => env('OPENROUTER_VISION_MODEL', 'openai/gpt-4o-mini'),
+        'vision_enabled' => env('OPENROUTER_VISION_ENABLED', true),
     ],
 
 ];

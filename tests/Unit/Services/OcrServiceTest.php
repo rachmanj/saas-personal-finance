@@ -29,13 +29,13 @@ class OcrServiceTest extends TestCase
     public function test_parse_with_vision_returns_structured_result(): void
     {
         config([
-            'services.deepseek.api_key' => 'test-key',
-            'services.deepseek.vision_model' => 'deepseek-v4-flash-vision-exp',
-            'services.deepseek.vision_enabled' => true,
+            'services.openrouter.api_key' => 'test-key',
+            'services.openrouter.vision_model' => 'openai/gpt-4o-mini',
+            'services.openrouter.vision_enabled' => true,
         ]);
 
         Http::fake([
-            'api.deepseek.com/*' => Http::response([
+            'openrouter.ai/*' => Http::response([
                 'choices' => [
                     [
                         'message' => [
@@ -63,8 +63,8 @@ class OcrServiceTest extends TestCase
         Http::assertSent(function ($request) {
             $body = $request->data();
 
-            return $request->url() === 'https://api.deepseek.com/chat/completions'
-                && $body['model'] === 'deepseek-v4-flash-vision-exp'
+            return $request->url() === 'https://openrouter.ai/api/v1/chat/completions'
+                && $body['model'] === 'openai/gpt-4o-mini'
                 && $body['messages'][1]['content'][1]['image_url']['detail'] === 'low'
                 && str_starts_with($body['messages'][1]['content'][1]['image_url']['url'], 'data:image/jpeg;base64,');
         });
@@ -72,10 +72,10 @@ class OcrServiceTest extends TestCase
 
     public function test_parse_with_vision_throws_on_api_error(): void
     {
-        config(['services.deepseek.api_key' => 'test-key']);
+        config(['services.openrouter.api_key' => 'test-key']);
 
         Http::fake([
-            'api.deepseek.com/*' => Http::response(['error' => 'server error'], 500),
+            'openrouter.ai/*' => Http::response(['error' => 'server error'], 500),
         ]);
 
         $service = new OcrService;
@@ -87,12 +87,12 @@ class OcrServiceTest extends TestCase
     public function test_parse_falls_back_to_tesseract_when_vision_fails(): void
     {
         config([
-            'services.deepseek.api_key' => 'test-key',
-            'services.deepseek.vision_enabled' => true,
+            'services.openrouter.api_key' => 'test-key',
+            'services.openrouter.vision_enabled' => true,
         ]);
 
         Http::fake([
-            'api.deepseek.com/*' => Http::response([], 500),
+            'openrouter.ai/*' => Http::response([], 500),
         ]);
 
         $service = $this->getMockBuilder(OcrService::class)
@@ -118,13 +118,13 @@ class OcrServiceTest extends TestCase
     public function test_parse_uses_vision_for_images_when_configured(): void
     {
         config([
-            'services.deepseek.api_key' => 'test-key',
-            'services.deepseek.vision_model' => 'deepseek-v4-flash-vision-exp',
-            'services.deepseek.vision_enabled' => true,
+            'services.openrouter.api_key' => 'test-key',
+            'services.openrouter.vision_model' => 'openai/gpt-4o-mini',
+            'services.openrouter.vision_enabled' => true,
         ]);
 
         Http::fake([
-            'api.deepseek.com/*' => Http::response([
+            'openrouter.ai/*' => Http::response([
                 'choices' => [
                     [
                         'message' => [
@@ -146,8 +146,8 @@ class OcrServiceTest extends TestCase
     public function test_parse_skips_vision_when_disabled(): void
     {
         config([
-            'services.deepseek.api_key' => 'test-key',
-            'services.deepseek.vision_enabled' => false,
+            'services.openrouter.api_key' => 'test-key',
+            'services.openrouter.vision_enabled' => false,
         ]);
 
         Http::fake();
