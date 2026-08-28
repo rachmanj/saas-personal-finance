@@ -50,7 +50,7 @@ class OcrService
             . "Field:\n"
             . "- merchant: string (nama toko, contoh: Fore Coffee)\n"
             . "- items: string (daftar item yang dibeli, pisahkan dengan koma, tanpa harga dan jumlah. Contoh: \"Regular Hot Americano, Butter Croissant, Tas Belanja\")\n"
-            . "- amount: integer (total pembayaran dalam rupiah)\n"
+            . "- amount: integer (TOTAL pembayaran dalam rupiah — ambil angka di baris 'Total' / 'Total Pembayaran' / 'TOTAL'. JANGAN ambil 'Tunai', 'Bayar', 'Dibayar', atau 'Kembali'. Contoh: struk dengan Total=9.000, Tunai=10.000, Kembali=1.000 → amount=9000)\n"
             . "- date: string (Y-m-d atau null)\n"
             . "Abaikan alamat toko, NPWP, nama customer, nomor order, dan informasi pajak.\n"
             . "Hanya return JSON, tidak ada teks lain.";
@@ -73,7 +73,7 @@ class OcrService
                                 'type' => 'image_url',
                                 'image_url' => [
                                     'url' => $dataUrl,
-                                    'detail' => 'low',
+                                    'detail' => 'high',
                                 ],
                             ],
                         ],

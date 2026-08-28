@@ -65,7 +65,7 @@ class OcrServiceTest extends TestCase
 
             return $request->url() === 'https://openrouter.ai/api/v1/chat/completions'
                 && $body['model'] === 'openai/gpt-4o-mini'
-                && $body['messages'][1]['content'][1]['image_url']['detail'] === 'low'
+                && $body['messages'][1]['content'][1]['image_url']['detail'] === 'high'
                 && str_starts_with($body['messages'][1]['content'][1]['image_url']['url'], 'data:image/jpeg;base64,');
         });
     }
