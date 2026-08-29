@@ -129,8 +129,11 @@ class ProcessMessageAction
                         }
 
                         if (empty($parsed['date']) && ! empty($ocrResult['date'])) {
-                            $parsed['date'] = \DateTime::createFromFormat('d/m/Y', $ocrResult['date'])?->format('Y-m-d')
-                                ?? \DateTime::createFromFormat('d-m-Y', $ocrResult['date'])?->format('Y-m-d');
+                            $dateObj = \DateTime::createFromFormat('d/m/Y', $ocrResult['date'])
+                                ?: \DateTime::createFromFormat('d-m-Y', $ocrResult['date']);
+                            if ($dateObj !== false) {
+                                $parsed['date'] = $dateObj->format('Y-m-d');
+                            }
                         }
 
                         if ($amount !== null) {
