@@ -13,6 +13,7 @@ class VoiceJob extends Model
     use BelongsToTeam, HasFactory;
 
     protected $fillable = [
+        'team_id',
         'user_id',
         'audio_path',
         'transcript',

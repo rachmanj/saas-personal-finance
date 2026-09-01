@@ -13,6 +13,7 @@ class OcrJob extends Model
     use BelongsToTeam, HasFactory;
 
     protected $fillable = [
+        'team_id',
         'user_id',
         'file_path',
         'status',

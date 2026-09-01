@@ -12,6 +12,7 @@ class BillReminder extends Model
     use BelongsToTeam, HasFactory;
 
     protected $fillable = [
+        'team_id',
         'name',
         'amount',
         'currency',

@@ -13,6 +13,7 @@ class Budget extends Model
     use BelongsToTeam, HasFactory;
 
     protected $fillable = [
+        'team_id',
         'user_id',
         'category_id',
         'amount',

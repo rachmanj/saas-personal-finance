@@ -12,6 +12,7 @@ class Account extends Model
     use BelongsToTeam, HasFactory;
 
     protected $fillable = [
+        'team_id',
         'name',
         'type',
         'currency',

@@ -10,5 +10,5 @@ class Tag extends Model
 {
     use BelongsToTeam, HasFactory;
 
-    protected $fillable = ['name', 'color'];
+    protected $fillable = ['name', 'color', 'team_id'];
 }

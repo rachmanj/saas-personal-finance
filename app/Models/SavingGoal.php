@@ -13,6 +13,7 @@ class SavingGoal extends Model
     use BelongsToTeam, HasFactory;
 
     protected $fillable = [
+        'team_id',
         'user_id',
         'account_id',
         'name',

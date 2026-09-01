@@ -13,6 +13,7 @@ class Category extends Model
     use BelongsToTeam, HasFactory;
 
     protected $fillable = [
+        'team_id',
         'name',
         'type',
         'parent_id',
