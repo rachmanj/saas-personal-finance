@@ -45,7 +45,7 @@ class AiParserService
             . "Field:\n"
             . "- merchant: string (nama toko, contoh: Fore Coffee)\n"
             . "- items: string (daftar item yang dibeli, pisahkan dengan koma, tanpa harga dan jumlah. Contoh: \"Regular Hot Americano, Butter Croissant, Tas Belanja\")\n"
-            . "- amount: integer (total pembayaran dalam rupiah)\n"
+            . "- amount: integer (total pembayaran dalam rupiah) atau null jika tidak ada total yang jelas. JANGAN gunakan 0; jika tidak ada nominal, set amount ke null.\n"
             . "- date: string (Y-m-d atau null)\n"
             . "Abaikan alamat toko, NPWP, nama customer, nomor order, dan informasi pajak.\n"
             . "Hanya return JSON, tidak ada teks lain.";
@@ -79,7 +79,7 @@ class AiParserService
             return [
                 'merchant' => $parsed['merchant'] ?? null,
                 'items' => $parsed['items'] ?? null,
-                'amount' => isset($parsed['amount']) ? (int)$parsed['amount'] : null,
+                'amount' => $this->normalizeAmount($parsed['amount'] ?? null),
                 'date' => $parsed['date'] ?? null,
             ];
         } catch (\Throwable $e) {
@@ -91,7 +91,8 @@ class AiParserService
     private function parseWithDeepSeek(string $text): array
     {
         $systemPrompt = "Kamu adalah parser transaksi keuangan Bahasa Indonesia. Parse pesan berikut ke JSON.\n"
-            . "Field: amount (integer rupiah), description (string), type (income/expense), category (string), date (Y-m-d atau null), merchant (string atau null).\n"
+            . "Field: amount (integer rupiah atau null jika pesan tidak memuat nominal uang), description (string), type (income/expense), category (string), date (Y-m-d atau null), merchant (string atau null).\n"
+            . "PENTING: Jika pesan tidak memuat jumlah uang/nominal transaksi, field amount WAJIB null — jangan pernah mengisi 0.\n"
             . "Hanya return JSON, tidak ada teks lain.";
 
         try {
@@ -121,15 +122,15 @@ class AiParserService
                 throw new \RuntimeException('Invalid JSON from DeepSeek');
             }
 
-            return [
-                'amount' => isset($parsed['amount']) ? (int)$parsed['amount'] : null,
+            return $this->normalizeTransactionParseResult([
+                'amount' => $parsed['amount'] ?? null,
                 'description' => $parsed['description'] ?? $text,
                 'type' => in_array($parsed['type'] ?? '', ['income', 'expense']) ? $parsed['type'] : 'expense',
                 'category_suggestion' => $parsed['category'] ?? null,
                 'date' => $parsed['date'] ?? null,
                 'merchant' => $parsed['merchant'] ?? null,
                 'error' => null,
-            ];
+            ]);
         } catch (\Throwable $e) {
             Log::warning('DeepSeek parse failed: ' . $e->getMessage());
             throw $e;
@@ -139,6 +140,33 @@ class AiParserService
     private function parseWithGemini(string $text): array
     {
         $gemini = new GeminiService;
-        return $gemini->parseTransactionText($text);
+        $result = $gemini->parseTransactionText($text);
+
+        return $this->normalizeTransactionParseResult($result);
+    }
+
+    /**
+     * @return array{amount: ?int, description: string, type: string, category_suggestion: ?string, date: ?string, merchant: ?string, error: ?string}
+     */
+    private function normalizeTransactionParseResult(array $result): array
+    {
+        $result['amount'] = $this->normalizeAmount($result['amount'] ?? null);
+
+        return $result;
+    }
+
+    private function normalizeAmount(mixed $amount): ?int
+    {
+        if ($amount === null || $amount === '') {
+            return null;
+        }
+
+        $value = (int) $amount;
+
+        if ($value <= 0) {
+            return null;
+        }
+
+        return $value;
     }
 }

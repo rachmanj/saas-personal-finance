@@ -44,7 +44,7 @@ export default function Edit() {
                     <Input placeholder="contoh: Belanja bulanan" />
                 </Form.Item>
                 <Form.Item label="Jumlah" name="amount" rules={[{ required: true, message: 'Jumlah wajib diisi' }]}>
-                    <InputNumber style={{ width: '100%' }} min={0} placeholder="0" />
+                    <InputNumber style={{ width: '100%' }} min={0.01} placeholder="0" />
                 </Form.Item>
                 <Form.Item label="Tipe" name="type" rules={[{ required: true, message: 'Tipe wajib dipilih' }]}>
                     <Select>

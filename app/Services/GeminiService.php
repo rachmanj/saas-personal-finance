@@ -34,7 +34,7 @@ class GeminiService
      */
     public function parseTransactionText(string $text): array
     {
-        $systemPrompt = "Kamu adalah parser transaksi keuangan Bahasa Indonesia. Parse pesan berikut ke JSON dengan field:\n- amount: integer (jumlah uang dalam rupiah)\n- description: string (deskripsi transaksi, tanpa tanggal dan jumlah)\n- type: \"income\" atau \"expense\"\n- category: string (kategori transaksi dalam bahasa indonesia)\n- date: Y-m-d atau null\n- merchant: string (nama toko/aplikasi pembayaran, misal: DANA, GoPay, Alfamart, Tokopedia) atau null\n\nHanya return JSON, tidak ada teks lain.";
+        $systemPrompt = "Kamu adalah parser transaksi keuangan Bahasa Indonesia. Parse pesan berikut ke JSON dengan field:\n- amount: integer (jumlah uang dalam rupiah) atau null jika pesan tidak memuat nominal\n- description: string (deskripsi transaksi, tanpa tanggal dan jumlah)\n- type: \"income\" atau \"expense\"\n- category: string (kategori transaksi dalam bahasa indonesia)\n- date: Y-m-d atau null\n- merchant: string (nama toko/aplikasi pembayaran, misal: DANA, GoPay, Alfamart, Tokopedia) atau null\n\nPENTING: Jika pesan tidak memuat jumlah uang/nominal transaksi, field amount WAJIB null — jangan pernah mengisi 0.\n\nHanya return JSON, tidak ada teks lain.";
 
         $userPrompt = "Parse this Indonesian transaction message into JSON: {amount, description, type (income/expense), category, date (Y-m-d if present), merchant}. Text: {$text}";
 
@@ -89,8 +89,13 @@ class GeminiService
      */
     private function normalizeResponse(array $parsed, string $originalText): array
     {
+        $amount = isset($parsed['amount']) ? (int) $parsed['amount'] : null;
+        if ($amount !== null && $amount <= 0) {
+            $amount = null;
+        }
+
         return [
-            'amount' => isset($parsed['amount']) ? (int) $parsed['amount'] : null,
+            'amount' => $amount,
             'description' => $parsed['description'] ?? $originalText,
             'type' => in_array($parsed['type'] ?? '', ['income', 'expense'], true) ? $parsed['type'] : 'expense',
             'category_suggestion' => $parsed['category'] ?? null,

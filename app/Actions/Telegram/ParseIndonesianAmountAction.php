@@ -66,11 +66,17 @@ class ParseIndonesianAmountAction
         $numericStr = $m[1];
         $clean = $this->normalizeNumeric($numericStr);
 
-        if (is_numeric($clean) && $clean > 0) {
-            return (int) round((float) $clean * $multiplier);
+        if (! is_numeric($clean)) {
+            return null;
         }
 
-        return null;
+        $result = (int) round((float) $clean * $multiplier);
+
+        if ($result <= 0) {
+            return null;
+        }
+
+        return $result;
     }
 
     /**

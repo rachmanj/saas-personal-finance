@@ -136,7 +136,7 @@ class ProcessMessageAction
                             }
                         }
 
-                        if ($amount !== null) {
+                        if ($amount !== null && (int) $amount > 0) {
                             $account = $this->findAccount($telegramUser);
                             if ($account) {
                                 $teamId = $telegramUser->user->current_team_id;
@@ -188,7 +188,8 @@ class ProcessMessageAction
         $parser = new ParseTransactionTextAction;
         $parsed = $parser->execute($text);
 
-        if ($parsed['amount'] === null) {
+        $amount = $parsed['amount'] ?? null;
+        if ($amount === null || $amount <= 0) {
             $this->updateLastMessage($telegramUser, 'failed', 'No amount detected');
 
             $reply = "Maaf, aku nggak bisa menemukan jumlah uang di pesanmu. 😅\n\n"
@@ -291,6 +292,18 @@ class ProcessMessageAction
                 'chat_id' => $chatId,
                 'message_id' => $messageId,
                 'text' => '⚠️ Tidak ada rekening aktif ditemukan.',
+                'parse_mode' => 'HTML',
+            ];
+        }
+
+        $callbackAmount = $parsed['amount'] ?? null;
+        if ($callbackAmount === null || (int) $callbackAmount <= 0) {
+            return [
+                'type' => 'callback_edit',
+                'callback_query_id' => $callbackQueryId,
+                'chat_id' => $chatId,
+                'message_id' => $messageId,
+                'text' => '⚠️ Jumlah transaksi harus lebih besar dari 0. Kirim ulang pesan dengan nominal yang jelas.',
                 'parse_mode' => 'HTML',
             ];
         }

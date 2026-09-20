@@ -24,7 +24,8 @@ class ParseTransactionTextAction
         if ($aiService->isConfigured()) {
             try {
                 $result = $aiService->parseTransactionText($text);
-                if ($result['amount'] !== null) {
+                $aiAmount = $result['amount'] ?? null;
+                if ($aiAmount !== null && $aiAmount > 0) {
                     return $result;
                 }
                 Log::info('AI returned no amount, falling back to regex', ['text' => $text]);
@@ -46,15 +47,15 @@ class ParseTransactionTextAction
         $description = $this->extractDescription($text);
         $description = trim(preg_replace('/\s+/', ' ', $description));
 
-        if ($amount === null) {
+        if ($amount === null || $amount <= 0) {
             return [
                 'amount' => null,
                 'description' => $description ?: $text,
                 'type' => 'expense',
                 'category_suggestion' => null,
-                                'date' => $this->extractDate($text),
-                                'merchant' => $this->extractMerchant($text),
-                                'error' => 'no_amount',
+                'date' => $this->extractDate($text),
+                'merchant' => $this->extractMerchant($text),
+                'error' => 'no_amount',
             ];
         }
 

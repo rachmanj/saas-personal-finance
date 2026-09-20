@@ -5,6 +5,7 @@ namespace App\Actions\Transactions;
 use App\Models\Transaction;
 use App\Services\CurrencyConverterService;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 class CreateTransactionAction
 {
@@ -12,6 +13,13 @@ class CreateTransactionAction
 
     public function execute(array $data): Transaction
     {
+        $amount = $data['amount'] ?? null;
+        if ($amount === null || abs((float) $amount) < 0.01) {
+            throw ValidationException::withMessages([
+                'amount' => ['Jumlah transaksi harus lebih besar dari 0.'],
+            ]);
+        }
+
         return DB::transaction(function () use ($data) {
             $baseCurrency = $data['base_currency'] ?? 'IDR';
             $rate = $this->converter->rateFor($data['currency'], $baseCurrency, $data['transaction_date'] ?? null);
